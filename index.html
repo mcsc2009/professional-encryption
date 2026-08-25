@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>专业级加密 · 最终修复版（文本解密支持上传密文文件）</title>
+    <style>
+        /* ===== 样式与之前相同（略，保持原样） ===== */
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 28px 32px;
+            box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.15);
+        }
+        h1 { font-size: 1.8rem; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+        .sub { color: #475569; margin-bottom: 24px; border-left: 4px solid #3b82f6; padding-left: 16px; }
+        .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+        .tab { padding: 8px 20px; border-radius: 40px; border: none; background: transparent; font-weight: 600; cursor: pointer; color: #64748b; transition: 0.2s; font-size: 0.95rem; }
+        .tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .tab:hover:not(.active) { background: #e2e8f0; }
+        .tab-content { display: none; animation: fadeIn 0.2s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0.6; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .settings-panel { background: #f8fafc; border-radius: 16px; padding: 16px 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+        .settings-panel .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .settings-panel label { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+        .settings-panel input[type="password"], .settings-panel input[type="number"] { padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; width: 140px; background: white; }
+        .settings-panel input[type="number"] { width: 100px; }
+
+        .row { display: flex; flex-wrap: wrap; gap: 12px 16px; margin: 12px 0; align-items: center; }
+        .row label { min-width: 100px; font-weight: 600; }
+        textarea, input[type="text"], input[type="password"] { flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #f8fafc; }
+        textarea { min-height: 80px; resize: vertical; }
+        .file-drop { border: 2px dashed #cbd5e1; border-radius: 16px; padding: 28px; text-align: center; color: #64748b; cursor: pointer; transition: 0.2s; background: #f8fafc; }
+        .file-drop.dragover { border-color: #3b82f6; background: #eff6ff; }
+        .file-drop input { display: none; }
+
+        .btn { background: #3b82f6; color: white; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .btn:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); }
+        .btn-outline { background: transparent; color: #3b82f6; border: 2px solid #3b82f6; }
+        .btn-outline:hover:not(:disabled) { background: #eff6ff; transform: none; }
+        .btn-success { background: #10b981; }
+        .btn-danger { background: #ef4444; }
+        .btn-sm { padding: 4px 14px; font-size: 0.8rem; }
+        .card { background: #f8fafc; border-radius: 16px; padding: 16px 20px; margin: 16px 0; border: 1px solid #e2e8f0; }
+        .output-box { background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 14px 18px; word-break: break-all; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; max-height: 200px; overflow-y: auto; margin: 8px 0; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .badge { background: #dbeafe; color: #1e40af; padding: 4px 14px; border-radius: 40px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .progress-bar { width: 100%; height: 8px; background: #e2e8f0; border-radius: 8px; margin: 8px 0; overflow: hidden; }
+        .progress-bar .fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
+
+        .note { font-size: 0.85rem; color: #475569; background: #f1f5f9; padding: 8px 12px; border-radius: 8px; margin: 6px 0; }
+
+        #logPanel { background: #0b1120; color: #e2e8f0; border-radius: 12px; padding: 12px 16px; margin-top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; border: 1px solid #1e293b; display: none; }
+        #logPanel .log-entry { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+        #logPanel .log-time { color: #64748b; margin-right: 8px; }
+        #logPanel .log-level { font-weight: bold; margin-right: 8px; }
+        #logPanel .log-level.info { color: #60a5fa; }
+        #logPanel .log-level.warn { color: #fbbf24; }
+        #logPanel .log-level.error { color: #f87171; }
+        #logPanel .log-level.debug { color: #a78bfa; }
+
+        .cipher-upload-area { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px 16px; transition: 0.2s; width: 100%; }
+        .cipher-upload-area.dragover { border-color: #3b82f6; background: #eff6ff; }
+        .cipher-upload-area .file-status { font-size: 0.9rem; color: #475569; flex: 1; min-width: 100px; }
+        .cipher-upload-area .file-status.loaded { color: #16a34a; font-weight: 500; }
+        .cipher-upload-area .hint { font-size: 0.8rem; color: #94a3b8; margin-left: 4px; }
+
+        @media (max-width:700px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .row { flex-direction: column; align-items: stretch; }
+            .row label { min-width: auto; }
+            .settings-panel { flex-direction: column; align-items: stretch; }
+            .cipher-upload-area { flex-direction: column; align-items: stretch; }
+        }
+
+        /* switch 样式，保留但改为 label 包裹 input */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            margin: 0 6px 0 0;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; position: absolute; left: -9999px; }
+        .switch .slider {
+            position: relative; display: block; width: 40px; height: 22px; background: #cbd5e1; border-radius: 22px; transition: .3s;
+        }
+        .switch .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .3s; }
+        .switch input:checked + .slider { background: #3b82f6; }
+        .switch input:checked + .slider:before { transform: translateX(18px); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 专业级加密 · 最终修复版（文本解密支持上传密文文件）</h1>
+        <div class="sub">加密/解密独立 · 流式零拷贝 · 指纹校验 · 头部解析已修复 · 文本解密可上传 .enc 文件</div>
+
+        <div id="compatCheck" class="status-ok">✅ Web Crypto API 可用 · 支持流式</div>
+
+        <div class="settings-panel">
+            <div class="group">
+                <label for="encMk">🔑 主密码</label>
+                <input type="password" id="encMk" placeholder="至少8位（不要在公共环境中输入真实密码）" />
+            </div>
+            <div class="group">
+                <label>📎 密钥文件</label>
+                <button class="btn btn-outline btn-sm" id="keyFileBtn">选择</button>
+                <input type="file" id="keyFileInput" style="display:none;" />
+                <span id="keyFileStatus" class="key-file-status">未加载</span>
+                <button class="btn btn-outline btn-danger btn-sm" id="clearKeyFileBtn">✕</button>
+            </div>
+            <div class="group">
+                <label>⚙️ 迭代</label>
+                <input type="number" id="iterations" value="100000" min="10000" max="10000000" step="10000" style="width:100px;" />
+                <button class="btn btn-outline btn-sm" id="benchmarkBtn">⏱️测速</button>
+                <span id="benchmarkResult" class="text-muted"></span>
+            </div>
+            <div class="group">
+                <label>📜 日志</label>
+                <label class="switch" title="开启后显示调试日志">
+                    <input type="checkbox" id="enableLogs" />
+                    <span class="slider"></span>
+                </label>
+                <span class="text-muted">（默认关闭）</span>
+            </div>
+            <details style="font-size:0.9rem; color:#475569;">
+                <summary style="cursor:pointer;">更多预设</summary>
+                <div class="flex" style="margin-top:4px;">
+                    <button class="btn btn-outline btn-sm" data-iter="100000">10万</button>
+                    <button class="btn btn-outline btn-sm" data-iter="600000">60万</button>
+                    <button class="btn btn-outline btn-sm" data-iter="1000000">100万</button>
+                    <span class="text-muted" style="margin-left:8px;">（点击切换）</span>
+                </div>
+            </details>
+            <span class="text-muted" style="font-size:0.8rem;">⚠️ 加密时若加载密钥文件，解密时也必须加载相同文件</span>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="text-encrypt">🔒 文本加密</button>
+            <button class="tab" data-tab="text-decrypt">🔓 文本解密</button>
+            <button class="tab" data-tab="file-encrypt">📁 文件加密</button>
+            <button class="tab" data-tab="file-decrypt">📂 文件解密</button>
+        </div>
+
+        <div id="tab-text-encrypt" class="tab-content active">
+            <div class="row">
+                <label for="plainText">📝 明文</label>
+                <textarea id="plainText" placeholder="输入要加密的文本……">专业级加密演示：流式 + 链式认证</textarea>
+            </div>
+            <div class="row">
+                <label>🗜️ 压缩</label>
+                <label class="switch" title="压缩可以减小体积（Gzip）">
+                    <input type="checkbox" id="enableCompress" checked />
+                    <span class="slider"></span>
+                </label>
+                <span class="text-muted">（Gzip，减小体积）</span>
+            </div>
+            <button class="btn" id="encryptTextBtn">🔒 执行加密</button>
+        </div>
+
+        <div id="tab-text-decrypt" class="tab-content">
+            <div class="row" style="margin-bottom:0;">
+                <label>📂 上传密文</label>
+                <div class="cipher-upload-area" id="cipherUploadArea">
+                    <button class="btn btn-outline btn-sm" id="uploadCipherBtn">📁 选择 .enc 文件</button>
+                    <input type="file" id="cipherFileInput" style="display:none;" accept=".enc,.bin" />
+                    <span class="file-status" id="cipherFileStatus">未选择</span>
+                    <button class="btn btn-outline btn-danger btn-sm" id="clearCipherFileBtn">✕</button>
+                    <span class="hint">（上传后自动填入下方密文框，若文件较大请使用“文件解密”标签）</span>
+                </div>
+            </div>
+            <div class="row">
+                <label for="cipherText">📜 Base64 密文</label>
+                <textarea id="cipherText" placeholder="请粘贴上一轮加密生成的 Base64 密文……也可点击上方按钮上传 .enc 文
