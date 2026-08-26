@@ -575,87 +575,87 @@ GNU Affero General Public License, you may choose any version ever published
 by the Free Software Foundation.
 
   If the Program specifies that a proxy can decide which future
-versions of the GNU Affero General Public License can be used, that proxy's
-public statement of acceptance of a version permanently authorizes you
-to choose that version for the Program.
+可以使用GNU Affero通用公共许可证的版本，该代理的
+接受某一版本的公开声明永久授权您
+为程序选择该版本。
 
-  Later license versions may give you additional or different
-permissions.  However, no additional obligations are imposed on any
-author or copyright holder as a result of your choosing to follow a
-later version.
+更高的许可证版本可能会为您提供额外的或不同的
+但是，不会对任何
+作者或版权所有者，因为您选择跟踪
+更新版本。
 
-  15. Disclaimer of Warranty.
+15.免责声明。
 
-  THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY
-APPLICABLE LAW.  EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
-HOLDERS AND/OR OTHER PARTIES PROVIDE THE PROGRAM "AS IS" WITHOUT WARRANTY
-OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM
-IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
-ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+在许可的范围内，本程序无任何保修
+适用法律。除非另有书面说明，版权
+持有人和/或其他方按“原样”提供程序，无担保
+任何形式的明示或暗示，包括但不限于，
+适销性和适用性的默示保证
+目的。项目质量和绩效的全部风险
+与您同在。如果程序被证明有缺陷，您将承担
+所有必要的维修、修理或校正。
 
-  16. Limitation of Liability.
+16.责任限制。
 
-  IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
-THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY
-GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE
-USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF
-DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD
-PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS),
-EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
+在任何情况下，除非适用法律要求或书面同意
+任何版权持有人或修改和/或传送
+上述允许的程序应对您的损失负责，包括任何
+因下列原因引起的一般、特别、意外或后果性损害赔偿
+使用或无法使用程序(包括但不限于
+数据或数据呈现不准确或您或第三方承受的损失
+各方或程序未能与任何其他程序一起运行)，
+即使该持有人或其他方已被告知
+此类损害。
 
-  17. Interpretation of Sections 15 and 16.
+17.第15和16节的解释。
 
-  If the disclaimer of warranty and limitation of liability provided
-above cannot be given local legal effect according to their terms,
-reviewing courts shall apply local law that most closely approximates
-an absolute waiver of all civil liability in connection with the
-Program, unless a warranty or assumption of liability accompanies a
-copy of the Program in return for a fee.
+如果提供了免责声明和责任限制
+上述条款不能赋予当地法律效力，
+复审法院应适用最接近于
+绝对放弃与以下事项有关的所有民事责任
+计划，除非保证或承担责任
+程序的副本，作为费用的回报。
 
-                     END OF TERMS AND CONDITIONS
+条款和条件结束
 
-            How to Apply These Terms to Your New Programs
+如何将这些条款应用于新计划
 
-  If you develop a new program, and you want it to be of the greatest
-possible use to the public, the best way to achieve this is to make it
-free software which everyone can redistribute and change under these terms.
+如果你开发了一个新的程序你希望它是最伟大的
+对公众可能的用途，实现这一点的最好方法是使它
+每个人都可以在这些条款下重新发布和更改的自由软件。
 
-  To do so, attach the following notices to the program.  It is safest
-to attach them to the start of each source file to most effectively
-state the exclusion of warranty; and each file should have at least
-the "copyright" line and a pointer to where the full notice is found.
+要执行此操作，请将以下通知附加到程序。这是最安全的
+将它们最有效地附加到每个源文件的开头
+声明排除保修；并且每个文件应至少具有
+“版权”行和一个指向完整通知所在位置的指针。
 
-    <one line to give the program's name and a brief idea of what it does.>
-    Copyright (C) <year>  <name of author>
+<这是一个仅由前端编写的加密工具。没有外部依赖。仅在本地浏览器中运行。>
+版权所有(C)<2026><mcsc2009>
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as published
-    by the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+这个程序是自由软件：你可以重新发布和/或修改它
+根据发布的GNU Affero通用公共许可证条款
+由自由软件基金会提供许可证的第3版，或
+(由您选择)任何更高版本。
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
+分发这个程序是希望它会有用，
+但没有任何保证；甚至没有暗示的保证
+适销性或对特定用途的适用性。 请参阅
+GNU Affero通用公共许可证了解更多详细信息。
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+您应该已经收到了GNU Affero通用公共许可证的副本
+和这个计划一起。如果没有，请参见<https://www.gnu.org/licenses/>.
 
-Also add information on how to contact you by electronic and paper mail.
+同时添加有关如何通过电子邮件和纸质邮件与您联系的信息。
 
-  If your software can interact with users remotely through a computer
-network, you should also make sure that it provides a way for users to
-get its source.  For example, if your program is a web application, its
-interface could display a "Source" link that leads users to an archive
-of the code.  There are many ways you could offer source, and different
-solutions will be better for different programs; see section 13 for the
-specific requirements.
+如果您的软件可以通过计算机远程与用户交互
+网络，您还应该确保它为用户提供了一种
+例如，如果你的程序是一个web应用程序，它的
+界面可以显示一个“源”链接，将用户引导到存档
+有许多方法可以提供源代码，并且不同
+解决方案将更适合不同的计划；请参阅第13节了解
+具体要求。
 
-  You should also get your employer (if you work as a programmer) or school,
-if any, to sign a "copyright disclaimer" for the program, if necessary.
-For more information on this, and how to apply and follow the GNU AGPL, see
+你还应该让你的雇主(如果你是程序员)或学校，
+如有，如有必要，签署程序的“版权免责声明”。
+有关这方面的更多信息，以及如何应用和遵循GNU AGPL，请参见
 <https://www.gnu.org/licenses/>.
