@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>专业级加密 · 最终修复版（文本解密支持上传密文文件）</title>
+    <style>
+        /* ===== 样式与之前相同（略，保持原样） ===== */
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 28px 32px;
+            box-shadow: 0 20px 60px -12px rgba(0, 0, 0, 0.15);
+        }
+        h1 { font-size: 1.8rem; margin: 0 0 6px; display: flex; align-items: center; gap: 10px; }
+        .sub { color: #475569; margin-bottom: 24px; border-left: 4px solid #3b82f6; padding-left: 16px; }
+        .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+        .tab { padding: 8px 20px; border-radius: 40px; border: none; background: transparent; font-weight: 600; cursor: pointer; color: #64748b; transition: 0.2s; font-size: 0.95rem; }
+        .tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .tab:hover:not(.active) { background: #e2e8f0; }
+        .tab-content { display: none; animation: fadeIn 0.2s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0.6; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        .settings-panel { background: #f8fafc; border-radius: 16px; padding: 16px 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+        .settings-panel .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .settings-panel label { font-weight: 600; font-size: 0.9rem; white-space: nowrap; }
+        .settings-panel input[type="password"], .settings-panel input[type="number"] { padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; width: 140px; background: white; }
+        .settings-panel input[type="number"] { width: 100px; }
+
+        .row { display: flex; flex-wrap: wrap; gap: 12px 16px; margin: 12px 0; align-items: center; }
+        .row label { min-width: 100px; font-weight: 600; }
+        textarea, input[type="text"], input[type="password"] { flex: 1; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #f8fafc; }
+        textarea { min-height: 80px; resize: vertical; }
+        .file-drop { border: 2px dashed #cbd5e1; border-radius: 16px; padding: 28px; text-align: center; color: #64748b; cursor: pointer; transition: 0.2s; background: #f8fafc; }
+        .file-drop.dragover { border-color: #3b82f6; background: #eff6ff; }
+        .file-drop input { display: none; }
+
+        .btn { background: #3b82f6; color: white; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .btn:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); }
+        .btn-outline { background: transparent; color: #3b82f6; border: 2px solid #3b82f6; }
+        .btn-outline:hover:not(:disabled) { background: #eff6ff; transform: none; }
+        .btn-success { background: #10b981; }
+        .btn-danger { background: #ef4444; }
+        .btn-sm { padding: 4px 14px; font-size: 0.8rem; }
+        .card { background: #f8fafc; border-radius: 16px; padding: 16px 20px; margin: 16px 0; border: 1px solid #e2e8f0; }
+        .output-box { background: #0f172a; color: #e2e8f0; border-radius: 12px; padding: 14px 18px; word-break: break-all; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; max-height: 200px; overflow-y: auto; margin: 8px 0; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .badge { background: #dbeafe; color: #1e40af; padding: 4px 14px; border-radius: 40px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .progress-bar { width: 100%; height: 8px; background: #e2e8f0; border-radius: 8px; margin: 8px 0; overflow: hidden; }
+        .progress-bar .fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.2s; }
+
+        .note { font-size: 0.85rem; color: #475569; background: #f1f5f9; padding: 8px 12px; border-radius: 8px; margin: 6px 0; }
+
+        #logPanel { background: #0b1120; color: #e2e8f0; border-radius: 12px; padding: 12px 16px; margin-top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; border: 1px solid #1e293b; display: none; }
+        #logPanel .log-entry { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+        #logPanel .log-time { color: #64748b; margin-right: 8px; }
+        #logPanel .log-level { font-weight: bold; margin-right: 8px; }
+        #logPanel .log-level.info { color: #60a5fa; }
+        #logPanel .log-level.warn { color: #fbbf24; }
+        #logPanel .log-level.error { color: #f87171; }
+        #logPanel .log-level.debug { color: #a78bfa; }
+
+        .cipher-upload-area { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; padding: 10px 16px; transition: 0.2s; width: 100%; }
+        .cipher-upload-area.dragover { border-color: #3b82f6; background: #eff6ff; }
+        .cipher-upload-area .file-status { font-size: 0.9rem; color: #475569; flex: 1; min-width: 100px; }
+        .cipher-upload-area .file-status.loaded { color: #16a34a; font-weight: 500; }
+        .cipher-upload-area .hint { font-size: 0.8rem; color: #94a3b8; margin-left: 4px; }
+
+        @media (max-width:700px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .row { flex-direction: column; align-items: stretch; }
+            .row label { min-width: auto; }
+            .settings-panel { flex-direction: column; align-items: stretch; }
+            .cipher-upload-area { flex-direction: column; align-items: stretch; }
+        }
+
+        /* switch 样式，保留但改为 label 包裹 input */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+            margin: 0 6px 0 0;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; position: absolute; left: -9999px; }
+        .switch .slider {
+            position: relative; display: block; width: 40px; height: 22px; background: #cbd5e1; border-radius: 22px; transition: .3s;
+        }
+        .switch .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .3s; }
+        .switch input:checked + .slider { background: #3b82f6; }
+        .switch input:checked + .slider:before { transform: translateX(18px); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 专业级加密 · 最终修复版（文本解密支持上传密文文件）</h1>
+        <div class="sub">加密/解密独立 · 流式零拷贝 · 指纹校验 · 头部解析已修复 · 文本解密可上传 .enc 文件</div>
+
+        <div id="compatCheck" class="status-ok">✅ Web Crypto API 可用 · 支持流式</div>
+
+        <div class="settings-panel">
+            <div class="group">
+                <label for="encMk">🔑 主密码</label>
+                <input type="password" id="encMk" placeholder="至少8位（不要在公共环境中输入真实密码）" />
+            </div>
+            <div class="group">
+                <label>📎 密钥文件</label>
+                <button class="btn btn-outline btn-sm" id="keyFileBtn">选择</button>
+                <input type="file" id="keyFileInput" style="display:none;" />
+                <span id="keyFileStatus" class="key-file-status">未加载</span>
+                <button class="btn btn-outline btn-danger btn-sm" id="clearKeyFileBtn">✕</button>
+            </div>
+            <div class="group">
+                <label>⚙️ 迭代</label>
+                <input type="number" id="iterations" value="100000" min="10000" max="10000000" step="10000" style="width:100px;" />
+                <button class="btn btn-outline btn-sm" id="benchmarkBtn">⏱️测速</button>
+                <span id="benchmarkResult" class="text-muted"></span>
+            </div>
+            <div class="group">
+                <label>📜 日志</label>
+                <label class="switch" title="开启后显示调试日志">
+                    <input type="checkbox" id="enableLogs" />
+                    <span class="slider"></span>
+                </label>
+                <span class="text-muted">（默认关闭）</span>
+            </div>
+            <details style="font-size:0.9rem; color:#475569;">
+                <summary style="cursor:pointer;">更多预设</summary>
+                <div class="flex" style="margin-top:4px;">
+                    <button class="btn btn-outline btn-sm" data-iter="100000">10万</button>
+                    <button class="btn btn-outline btn-sm" data-iter="600000">60万</button>
+                    <button class="btn btn-outline btn-sm" data-iter="1000000">100万</button>
+                    <span class="text-muted" style="margin-left:8px;">（点击切换）</span>
+                </div>
+            </details>
+            <span class="text-muted" style="font-size:0.8rem;">⚠️ 加密时若加载密钥文件，解密时也必须加载相同文件</span>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="text-encrypt">🔒 文本加密</button>
+            <button class="tab" data-tab="text-decrypt">🔓 文本解密</button>
+            <button class="tab" data-tab="file-encrypt">📁 文件加密</button>
+            <button class="tab" data-tab="file-decrypt">📂 文件解密</button>
+        </div>
+
+        <div id="tab-text-encrypt" class="tab-content active">
+            <div class="row">
+                <label for="plainText">📝 明文</label>
+                <textarea id="plainText" placeholder="输入要加密的文本……">专业级加密演示：流式 + 链式认证</textarea>
+            </div>
+            <div class="row">
+                <label>🗜️ 压缩</label>
+                <label class="switch" title="压缩可以减小体积（Gzip）">
+                    <input type="checkbox" id="enableCompress" checked />
+                    <span class="slider"></span>
+                </label>
+                <span class="text-muted">（Gzip，减小体积）</span>
+            </div>
+            <button class="btn" id="encryptTextBtn">🔒 执行加密</button>
+        </div>
+
+        <div id="tab-text-decrypt" class="tab-content">
+            <div class="row" style="margin-bottom:0;">
+                <label>📂 上传密文</label>
+                <div class="cipher-upload-area" id="cipherUploadArea">
+                    <button class="btn btn-outline btn-sm" id="uploadCipherBtn">📁 选择 .enc 文件</button>
+                    <input type="file" id="cipherFileInput" style="display:none;" accept=".enc,.bin" />
+                    <span class="file-status" id="cipherFileStatus">未选择</span>
+                    <button class="btn btn-outline btn-danger btn-sm" id="clearCipherFileBtn">✕</button>
+                    <span class="hint">（上传后自动填入下方密文框，若文件较大请使用“文件解密”标签）</span>
+                </div>
+            </div>
+            <div class="row">
+                <label for="cipherText">📜 Base64 密文</label>
+                <textarea id="cipherText" placeholder="请粘贴上一轮加密生成的 Base64 密文……也可点击上方按钮上传 .enc 文件"></textarea>
+            </div>
+            <div class="row">
+                <label for="cipherFingerprint">🔑 指纹（可选）</label>
+                <input type="text" id="cipherFingerprint" placeholder="粘贴加密时的指纹以校验" />
+            </div>
+            <button class="btn" id="decryptTextBtn">🔓 执行解密</button>
+        </div>
+
+        <div id="tab-file-encrypt" class="tab-content">
+            <div class="file-drop" id="fileDropEncrypt">
+                <div style="font-size: 2.5rem; margin-bottom: 6px;">📂</div>
+                <strong>拖拽或点击选择文件（加密）</strong>
+                <input type="file" id="fileInputEncrypt" />
+                <div id="fileInfoEncrypt" style="margin-top:10px; font-weight:500; color:#0f172a;"></div>
+                <div class="progress-bar"><div class="fill" id="progressFillEncrypt"></div></div>
+            </div>
+            <button class="btn" id="encryptFileBtn">🔒 加密并流式保存 (.enc)</button>
+        </div>
+
+        <div id="tab-file-decrypt" class="tab-content">
+            <div class="file-drop" id="fileDropDecrypt">
+                <div style="font-size: 2.5rem; margin-bottom: 6px;">📂</div>
+                <strong>拖拽或点击选择 .enc 文件（解密）</strong>
+                <input type="file" id="fileInputDecrypt" />
+                <div id="fileInfoDecrypt" style="margin-top:10px; font-weight:500; color:#0f172a;"></div>
+                <div class="progress-bar"><div class="fill" id="progressFillDecrypt"></div></div>
+            </div>
+            <button class="btn" id="decryptFileBtn">🔓 解密并流式保存原文件</button>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <div class="flex-between">
+                <span class="badge badge-green">📋 操作结果</span>
+                <span id="sizeInfo" class="text-muted"></span>
+            </div>
+            <div id="resultDisplay" class="output-box" style="min-height:60px; background:#1e293b; max-height:300px;">
+                等待操作…
+            </div>
+            <div class="action-group" id="resultActions" style="display:none;">
+                <button class="btn btn-success" id="downloadResultBtn">⬇️ 下载结果</button>
+                <button class="btn btn-outline" id="copyResultBtn">📋 复制文本</button>
+                <button class="btn btn-outline" id="copyFingerprintBtn">📋 复制指纹</button>
+                <button class="btn btn-outline" id="clearBtn">🗑️ 清空</button>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+            <div class="flex-between">
+                <span class="badge">📋 调试日志</span>
+                <div class="log-controls">
+                    <button class="btn btn-outline btn-sm" id="clearLogBtn">清空日志</button>
+                    <button class="btn btn-outline btn-sm" id="copyLogBtn">复制日志</button>
+                </div>
+            </div>
+            <div id="logPanel"></div>
+        </div>
+
+        <div class="note">
+            ⚡ 完全自包含，无外部依赖。AES-256-GCM 逐块加密，链式 HMAC 防篡改，PBKDF2 自适应。
+            文件模式利用 <code>showSaveFilePicker</code> 零拷贝保存（不支持时自动降级）。
+            <strong>🆕 文本解密现已支持上传 .enc 文件（但如果文件大于 2MB 请使用文件解密标签以防内存问题）</strong>。
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // 日志面板（可开关） - 拦截 console，但只有 enableLogs=true 时才写入面板
+        // ================================================================
+        (function setupLogPanel() {
+            const panel = document.getElementById('logPanel');
+            const maxEntries = 500;
+            let enableLogs = document.getElementById('enableLogs').checked;
+
+            function addLog(level, args) {
+                if (!enableLogs) return; // 关闭时不记录到面板
+                const now = new Date();
+                const time = now.toLocaleTimeString() + '.' + String(now.getMilliseconds()).padStart(3, '0');
+                const message = args.map(arg => {
+                    if (typeof arg === 'object') {
+                        try { return JSON.stringify(arg); } catch { return String(arg); }
+                    }
+                    return String(arg);
+                }).join(' ');
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                const levelClass = level === 'warn' ? 'warn' : (level === 'error' ? 'error' : (level === 'debug' ? 'debug' : 'info'));
+                entry.innerHTML = `<span class="log-time">${time}</span><span class="log-level ${levelClass}">[${level.toUpperCase()}]</span>${escapeHtml(message)}`;
+                panel.appendChild(entry);
+                while (panel.children.length > maxEntries) panel.removeChild(panel.firstChild);
+                panel.scrollTop = panel.scrollHeight;
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // 保留原 console 行为，但 conditionally 记录到面板
+            const origLog = console.log, origWarn = console.warn, origError = console.error, origDebug = console.debug;
+            console.log = function(...args) { origLog.apply(console, args); addLog('info', args); };
+            console.warn = function(...args) { origWarn.apply(console, args); addLog('warn', args); };
+            console.error = function(...args) { origError.apply(console, args); addLog('error', args); };
+            console.debug = function(...args) { origDebug.apply(console, args); addLog('debug', args); };
+
+            document.getElementById('clearLogBtn').addEventListener('click', () => { panel.innerHTML = ''; });
+            document.getElementById('copyLogBtn').addEventListener('click', () => {
+                const text = panel.innerText;
+                navigator.clipboard.writeText(text).then(() => alert('日志已复制')).catch(() => {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    alert('日志已复制');
+                });
+            });
+
+            // 绑定开关，切换时显示/隐藏面板并启/禁记录
+            const enableLogsInput = document.getElementById('enableLogs');
+            function updateLogState() {
+                enableLogs = enableLogsInput.checked;
+                panel.style.display = enableLogs ? 'block' : 'none';
+                if (!enableLogs) {
+                    // 可选：清空面板以防敏感信息残留
+                    // panel.innerHTML = '';
+                }
+            }
+            enableLogsInput.addEventListener('change', updateLogState);
+            updateLogState();
+        })();
+
+        // ================================================================
+        // 工具函数与兼容检查
+        // ================================================================
+        (function checkCompat() {
+            const el = document.getElementById('compatCheck');
+            if (!window.crypto || !window.crypto.subtle) {
+                el.className = 'compat-warning';
+                el.innerHTML = '<strong>❌ 浏览器不兼容</strong><div class="hint">需要 Web Crypto API。请使用 Chrome 70+、Firefox 63+ 或 Safari 14+。</div>';
+                document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+            }
+            if (!window.showSaveFilePicker) {
+                const msg = document.createElement('div');
+                msg.className = 'compat-warning';
+                msg.innerHTML = '<strong>⚠️ 提示</strong><div class="hint">当前浏览器不支持 showSaveFilePicker，大文件将降级到 Blob 下载（可能内存不足）。建议使用 Chrome 86+ 以获得最佳体验。</div>';
+                el.parentNode.insertBefore(msg, el.nextSibling);
+            }
+        })();
+
+        function uint8ToHex(u8) { return Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join(''); }
+
+        function wipeBuffer(buf) {
+            try {
+                if (!buf) return;
+                if (buf instanceof Uint8Array) { buf.fill(0); }
+                else if (buf instanceof ArrayBuffer) { new Uint8Array(buf).fill(0); }
+                else if (buf.buffer && buf.buffer instanceof ArrayBuffer) { new Uint8Array(buf.buffer).fill(0); }
+            } catch (e) {}
+        }
+
+        function safeCompare(a, b) {
+            if (!a || !b) return false;
+            if (a.length !== b.length) return false;
+            let diff = 0;
+            for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+            return diff === 0;
+        }
+
+        // 优化的 toBase64：分块 push 到数组再 join，避免频繁字符串拼接
+        function toBase64(u8) {
+            const chunkSize = 0x8000; // 32k
+            const chunks = [];
+            for (let i = 0; i < u8.length; i += chunkSize) {
+                const sub = u8.subarray(i, i + chunkSize);
+                chunks.push(String.fromCharCode.apply(null, sub));
+            }
+            return btoa(chunks.join(''));
+        }
+
+        function fromBase64(str) {
+            try {
+                const binary = atob(str);
+                const u8 = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) u8[i] = binary.charCodeAt(i);
+                return u8;
+            } catch (e) {
+                throw new Error('无效的 Base64 编码，请检查密文是否正确复制。');
+            }
+        }
+
+        // ================================================================
+        // 核心加解密（保持之前已修正的安全措施）
+        // ================================================================
+        const MAGIC = new Uint8Array([0x45, 0x4E, 0x43, 0x00]);
+        const SUPPORTED_VERSIONS = [0x01, 0x02];
+        const HMAC_LEN = 32;
+        const NONCE_LEN = 12;
+
+        async function deriveKey(password, salt, keyFileBytes, iterations, logPrefix = '') {
+            const enc = new TextEncoder();
+            console.log(`${logPrefix} 派生密钥: 迭代=${iterations}, keyFile=${keyFileBytes ? keyFileBytes.length + ' bytes' : '无'}`);
+            const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, keyMaterial, 512);
+            let baseKey = new Uint8Array(bits);
+            let mixed = baseKey;
+            if (keyFileBytes && keyFileBytes.length > 0) {
+                const hkdfKey = await crypto.subtle.importKey('raw', baseKey, { name: 'HKDF' }, false, ['deriveBits']);
+                const derivedBits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: keyFileBytes, info: new TextEncoder().encode('key-mix') }, hkdfKey, 512);
+                mixed = new Uint8Array(derivedBits);
+                wipeBuffer(baseKey);
+            }
+            const encKey = mixed.slice(0, 32);
+            const macKey = mixed.slice(32, 64);
+            console.log(`${logPrefix} 密钥派生完成`);
+            return { encKey, macKey };
+        }
+
+        function buildHeader(meta, chunkSize, totalChunks, iterations) {
+            const hasFilename = !!(meta.filename && meta.filename.length > 0);
+            const isText = meta.isText || false;
+            let flags = 0;
+            if (isText) flags |= 0b100;
+            if (hasFilename) flags |= 0b010;
+            if (meta.compressed) flags |= 0b001;
+            let nameBytes = new Uint8Array(0);
+            let mimeBytes = new Uint8Array(0);
+            let headerLen = 4 + 1 + 1 + 16 + 4 + 4 + 4;
+            if (hasFilename) {
+                nameBytes = new TextEncoder().encode(meta.filename);
+                const mime = meta.mime || 'application/octet-stream';
+                mimeBytes = new TextEncoder().encode(mime);
+                if (nameBytes.length > 0xFFFF) throw new Error('文件名过长');
+                if (mimeBytes.length > 0xFFFF) throw new Error('MIME 类型过长');
+                headerLen += 2 + nameBytes.length + 2 + mimeBytes.length;
+            }
+            const salt = meta.salt;
+            const header = new Uint8Array(headerLen);
+            let pos = 0;
+            header.set(MAGIC, pos); pos += 4;
+            header[pos++] = 0x02;
+            header[pos++] = flags;
+            header.set(salt, pos); pos += 16;
+            new DataView(header.buffer).setUint32(pos, iterations, false); pos += 4;
+            new DataView(header.buffer).setUint32(pos, chunkSize, false); pos += 4;
+            new DataView(header.buffer).setUint32(pos, totalChunks, false); pos += 4;
+            if (hasFilename) {
+                header[pos++] = (nameBytes.length >> 8) & 0xFF;
+                header[pos++] = nameBytes.length & 0xFF;
+                header.set(nameBytes, pos); pos += nameBytes.length;
+                header[pos++] = (mimeBytes.length >> 8) & 0xFF;
+                header[pos++] = mimeBytes.length & 0xFF;
+                header.set(mimeBytes, pos);
+            }
+            return header;
+        }
+
+        function readUint32(byteArray, offset) {
+            const dv = new DataView(byteArray.buffer, byteArray.byteOffset + offset, 4);
+            return dv.getUint32(0, false);
+        }
+
+        function parseHeader(headerBytes) {
+            if (headerBytes.length < 4 + 1 + 1 + 16) throw new Error('头部太短，可能不是有效的加密文件或密文已损坏。');
+            const magic = headerBytes.slice(0, 4);
+            if (magic[0] !== 0x45 || magic[1] !== 0x4E || magic[2] !== 0x43 || magic[3] !== 0x00) throw new Error('无效的密文格式（魔数不匹配）。');
+            const version = headerBytes[4];
+            if (!SUPPORTED_VERSIONS.includes(version)) throw new Error(`不支持的版本 ${version}，请升级工具。`);
+            const flags = headerBytes[5];
+            const compressed = (flags & 0b001) !== 0;
+            const hasFilename = (flags & 0b010) !== 0;
+            const isText = (flags & 0b100) !== 0;
+            let pos = 6;
+            const salt = headerBytes.slice(pos, pos + 16); pos += 16;
+            let iterations = null, chunkSize = null, totalChunks = null;
+            if (version === 0x02) {
+                if (headerBytes.length < pos + 4) throw new Error('头部不完整（缺少迭代次数）');
+                iterations = readUint32(headerBytes, pos); pos += 4;
+                if (headerBytes.length < pos + 4) throw new Error('头部不完整（缺少分块大小）');
+                chunkSize = readUint32(headerBytes, pos); pos += 4;
+                if (headerBytes.length < pos + 4) throw new Error('头部不完整（缺少总块数）');
+                totalChunks = readUint32(headerBytes, pos); pos += 4;
+            } else {
+                if (headerBytes.length < pos + 4) throw new Error('头部不完整');
+                chunkSize = readUint32(headerBytes, pos); pos += 4;
+                if (headerBytes.length < pos + 4) throw new Error('头部不完整');
+                totalChunks = readUint32(headerBytes, pos); pos += 4;
+            }
+            let filename = null, mime = null;
+            if (hasFilename) {
+                if (headerBytes.length < pos + 2) throw new Error('头部不完整');
+                const nameLen = (headerBytes[pos] << 8) | headerBytes[pos + 1]; pos += 2;
+                if (headerBytes.length < pos + nameLen) throw new Error('头部不完整');
+                filename = new TextDecoder().decode(headerBytes.slice(pos, pos + nameLen)); pos += nameLen;
+                if (headerBytes.length < pos + 2) throw new Error('头部不完整');
+                const mimeLen = (headerBytes[pos] << 8) | headerBytes[pos + 1]; pos += 2;
+                if (headerBytes.length < pos + mimeLen) throw new Error('头部不完整');
+                mime = new TextDecoder().decode(headerBytes.slice(pos, pos + mimeLen)); pos += mimeLen;
+            }
+            const headerLen = pos;
+            console.log('解析头部成功:', { version, flags, compressed, hasFilename, isText, salt: uint8ToHex(salt), iterations, chunkSize, totalChunks, filename, mime, headerLen });
+            return { version, flags, compressed, hasFilename, isText, salt, iterations, chunkSize, totalChunks, filename, mime, headerLen };
+        }
+
+        async function getChainInit(keyBytes) { const hash = await crypto.subtle.digest('SHA-256', keyBytes); return new Uint8Array(hash); }
+
+        // ===== 修改点 1：EncryptStream 增加 totalBytes 参数 =====
+        class EncryptStream extends TransformStream {
+            constructor(keys, meta, chunkSize, iterations, onProgress, totalBytes) {
+                let prevHash = null, headerWritten = false, initPromise = null;
+                let processed = 0, total = totalBytes || 0, blockIndex = 0;
+                let encCryptoKey = null, hmacCryptoKey = null;
+                // 保存 totalBytes 供 transform 使用
+                const totalSize = totalBytes || 0;
+                super({
+                    start() {
+                        initPromise = (async () => {
+                            prevHash = await getChainInit(keys.macKey);
+                            encCryptoKey = await crypto.subtle.importKey('raw', keys.encKey, { name: 'AES-GCM' }, false, ['encrypt']);
+                            hmacCryptoKey = await crypto.subtle.importKey('raw', keys.macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+                            console.log('加密流初始化，prevHash (初始链) 已生成');
+                        })();
+                        return initPromise;
+                    },
+                    async transform(chunk, controller) {
+                        await initPromise;
+                        if (!headerWritten) {
+                            // 计算真实总块数，至少为 1
+                            const totalChunks = totalSize > 0 ? Math.ceil(totalSize / chunkSize) : 1;
+                            const header = buildHeader(meta, chunkSize, totalChunks, iterations);
+                            controller.enqueue(header);
+                            headerWritten = true;
+                        }
+                        let offset = 0;
+                        while (offset < chunk.length) {
+                            const end = Math.min(offset + chunkSize, chunk.length);
+                            const blockData = chunk.subarray(offset, end);
+                            const nonce = crypto.getRandomValues(new Uint8Array(NONCE_LEN));
+                            const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, encCryptoKey, blockData));
+                            const toMac = new Uint8Array(prevHash.length + nonce.length + encrypted.length);
+                            toMac.set(prevHash, 0); toMac.set(nonce, prevHash.length); toMac.set(encrypted, prevHash.length + nonce.length);
+                            const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, toMac));
+                            prevHash = hmac.slice(0, HMAC_LEN);
+                            const blockOut = new Uint8Array(4 + nonce.length + encrypted.length + HMAC_LEN);
+                            new DataView(blockOut.buffer).setUint32(0, encrypted.length, false);
+                            blockOut.set(nonce, 4);
+                            blockOut.set(encrypted, 4 + nonce.length);
+                            blockOut.set(hmac, 4 + nonce.length + encrypted.length);
+                            controller.enqueue(blockOut);
+                            processed += (end - offset);
+                            if (onProgress && total) onProgress(processed, total);
+                            wipeBuffer(encrypted); wipeBuffer(nonce); wipeBuffer(hmac); wipeBuffer(toMac);
+                            offset = end; blockIndex++;
+                        }
+                    }
+                });
+            }
+        }
+
+        class DecryptStream extends TransformStream {
+            constructor(keys, onProgress, totalBytes) {
+                let buffer = new Uint8Array(0), prevHash = null, initPromise = null, processed = 0, total = totalBytes || 0, blockIndex = 0;
+                let encCryptoKey = null, hmacCryptoKey = null;
+                super({
+                    start() {
+                        initPromise = (async () => {
+                            prevHash = await getChainInit(keys.macKey);
+                            encCryptoKey = await crypto.subtle.importKey('raw', keys.encKey, { name: 'AES-GCM' }, false, ['decrypt']);
+                            hmacCryptoKey = await crypto.subtle.importKey('raw', keys.macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+                            console.log('解密流初始化，prevHash (初始链) 已生成');
+                        })();
+                        return initPromise;
+                    },
+                    async transform(chunk, controller) {
+                        await initPromise;
+                        const newBuf = new Uint8Array(buffer.length + chunk.length);
+                        newBuf.set(buffer, 0); newBuf.set(chunk, buffer.length); buffer = newBuf;
+                        await this._processBuffer(controller);
+                    },
+                    async flush(controller) {
+                        await initPromise;
+                        if (buffer.length > 0) controller.error(new Error('解密数据不完整，可能密文被截断'));
+                    },
+                    async _processBuffer(controller) {
+                        while (buffer.length >= 4) {
+                            const blockLen = new DataView(buffer.buffer, buffer.byteOffset).getUint32(0, false);
+                            const totalBlockSize = 4 + NONCE_LEN + blockLen + HMAC_LEN;
+                            if (buffer.length < totalBlockSize) break;
+                            const nonce = buffer.slice(4, 4 + NONCE_LEN);
+                            const encrypted = buffer.slice(4 + NONCE_LEN, 4 + NONCE_LEN + blockLen);
+                            const hmac = buffer.slice(4 + NONCE_LEN + blockLen, 4 + NONCE_LEN + blockLen + HMAC_LEN);
+                            const toMac = new Uint8Array(prevHash.length + nonce.length + encrypted.length);
+                            toMac.set(prevHash, 0); toMac.set(nonce, prevHash.length); toMac.set(encrypted, prevHash.length + nonce.length);
+                            const computedHmac = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, toMac));
+                            const ok = safeCompare(computedHmac, hmac);
+                            if (!ok) throw new Error(`链式 HMAC 验证失败（块 #${blockIndex}）：请检查主密码/密钥文件/密文完整性。`);
+                            prevHash = hmac.slice(0, HMAC_LEN);
+                            const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, encCryptoKey, encrypted));
+                            controller.enqueue(plain);
+                            processed += plain.length;
+                            if (onProgress && total) onProgress(processed, total);
+                            wipeBuffer(nonce); wipeBuffer(encrypted); wipeBuffer(hmac); wipeBuffer(computedHmac); wipeBuffer(toMac);
+                            buffer = buffer.slice(totalBlockSize); blockIndex++;
+                        }
+                    }
+                });
+            }
+        }
+
+        async function compressData(data) {
+            if (typeof CompressionStream === 'undefined') return null;
+            try {
+                const cs = new CompressionStream('gzip');
+                const writer = cs.writable.getWriter();
+                writer.write(data);
+                writer.close();
+                const reader = cs.readable.getReader();
+                const chunks = []; let total = 0;
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    chunks.push(value); total += value.length;
+                }
+                const result = new Uint8Array(total); let pos = 0;
+                for (const c of chunks) { result.set(c, pos); pos += c.length; }
+                return result;
+            } catch (e) {
+                console.warn('压缩失败:', e); return null;
+            }
+        }
+
+        async function decompressData(data) {
+            if (typeof DecompressionStream === 'undefined') return null;
+            try {
+                const ds = new DecompressionStream('gzip');
+                const writer = ds.writable.getWriter();
+                writer.write(data); writer.close();
+                const reader = ds.readable.getReader();
+                const chunks = []; let total = 0;
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    chunks.push(value); total += value.length;
+                }
+                const result = new Uint8Array(total); let pos = 0;
+                for (const c of chunks) { result.set(c, pos); pos += c.length; }
+                return result;
+            } catch (e) {
+                console.warn('解压失败:', e); return null;
+            }
+        }
+
+        // ================================================================
+        // UI 逻辑（与之前一致，压缩开关可用）
+        // ================================================================
+        let keyFileBytes = null;
+        let currentFileEncrypt = null;
+        let currentFileDecrypt = null;
+        let currentResultBlob = null;
+        let currentResultFingerprint = '';
+        let currentResultText = '';
+
+        const resultDisplay = document.getElementById('resultDisplay');
+        const resultActions = document.getElementById('resultActions');
+        const sizeInfo = document.getElementById('sizeInfo');
+        const downloadResultBtn = document.getElementById('downloadResultBtn');
+        const copyResultBtn = document.getElementById('copyResultBtn');
+        const copyFingerprintBtn = document.getElementById('copyFingerprintBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        const keyFileInput = document.getElementById('keyFileInput');
+        const keyFileBtn = document.getElementById('keyFileBtn');
+        const clearKeyFileBtn = document.getElementById('clearKeyFileBtn');
+        const keyFileStatus = document.getElementById('keyFileStatus');
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const target = tab.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                document.getElementById(`tab-${target}`).classList.add('active');
+            });
+        });
+
+        keyFileBtn.addEventListener('click', () => keyFileInput.click());
+        keyFileInput.addEventListener('change', () => {
+            if (keyFileInput.files.length) {
+                const file = keyFileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    keyFileBytes = new Uint8Array(e.target.result);
+                    keyFileStatus.textContent = `✅ 已加载 (${file.name})`;
+                    keyFileStatus.style.color = '#16a34a';
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+        clearKeyFileBtn.addEventListener('click', () => {
+            keyFileBytes = null;
+            keyFileStatus.textContent = '未加载';
+            keyFileStatus.style.color = '#64748b';
+            keyFileInput.value = '';
+        });
+
+        document.getElementById('benchmarkBtn').addEventListener('click', async () => {
+            const resultSpan = document.getElementById('benchmarkResult');
+            resultSpan.textContent = '⏳ 检测中...';
+            const password = 'test';
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const testIter = 10000;
+            const start = performance.now();
+            try {
+                const enc = new TextEncoder();
+                const keyMat = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
+                await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: testIter, hash: 'SHA-256' }, keyMat, 256);
+                const elapsed = (performance.now() - start) / 1000;
+                let recommended = Math.round(testIter / elapsed);
+                recommended = Math.min(10000000, Math.max(10000, recommended));
+                recommended = Math.round(recommended / 10000) * 10000;
+                document.getElementById('iterations').value = recommended;
+                resultSpan.textContent = `✅ ${testIter} 次耗时 ${elapsed.toFixed(3)}s，推荐 ${recommended.toLocaleString()} 次`;
+            } catch (e) {
+                resultSpan.textContent = '❌ 失败: ' + e.message;
+            }
+        });
+
+        document.querySelectorAll('[data-iter]').forEach(btn => {
+            btn.addEventListener('click', () => { document.getElementById('iterations').value = btn.dataset.iter; });
+        });
+
+        function getParams() {
+            const password = document.getElementById('encMk').value;
+            const iterations = parseInt(document.getElementById('iterations').value) || 100000;
+            const chunkSizeKiB = 1024;
+            const chunkSize = chunkSizeKiB * 1024;
+            // 正确读取压缩开关状态
+            const enableCompress = !!document.getElementById('enableCompress').checked;
+            return { password, iterations, chunkSize, enableCompress };
+        }
+
+        function showResult(text, fingerprint, blob, isBinary, matchStatus, isError) {
+            let finalText = text || '（空结果）';
+            const MAX_DISPLAY = 1000;
+            let displayText = finalText;
+            if (finalText.length > MAX_DISPLAY && !isBinary) displayText = finalText.slice(0, MAX_DISPLAY) + '...（完整结果请下载）';
+            if (isError) { displayText = '❌ ' + displayText; }
+            else if (matchStatus === 'match') displayText += '\n\n✅ 指纹匹配！数据完整且密码正确。';
+            else if (matchStatus === 'mismatch') displayText += '\n\n❌ 指纹不匹配！数据可能已损坏或密码错误。';
+
+            resultDisplay.textContent = displayText;
+            currentResultText = text || '';
+            currentResultFingerprint = fingerprint || '';
+            currentResultBlob = blob || null;
+            if (fingerprint) sizeInfo.textContent = `🔑 指纹: ${fingerprint}`; else sizeInfo.textContent = '';
+            if (isError) resultActions.style.display = 'none'; else {
+                resultActions.style.display = 'flex';
+                downloadResultBtn.style.display = blob ? 'inline-flex' : 'none';
+                copyResultBtn.style.display = (text && !isBinary) ? 'inline-flex' : 'none';
+                copyFingerprintBtn.style.display = fingerprint ? 'inline-flex' : 'none';
+            }
+        }
+
+        downloadResultBtn.addEventListener('click', () => {
+            if (!currentResultBlob) return;
+            const a = document.createElement('a');
+            const url = URL.createObjectURL(currentResultBlob);
+            a.href = url; a.download = 'output.bin';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        });
+        copyResultBtn.addEventListener('click', () => {
+            if (!currentResultText) return;
+            navigator.clipboard.writeText(currentResultText).then(() => alert('已复制')).catch(() => {
+                const ta = document.createElement('textarea'); ta.value = currentResultText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('已复制');
+            });
+        });
+        copyFingerprintBtn.addEventListener('click', () => {
+            if (!currentResultFingerprint) return;
+            navigator.clipboard.writeText(currentResultFingerprint).then(() => alert('指纹已复制')).catch(() => {
+                const ta = document.createElement('textarea'); ta.value = currentResultFingerprint; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('指纹已复制');
+            });
+        });
+        clearBtn.addEventListener('click', () => {
+            resultDisplay.textContent = '等待操作…';
+            resultActions.style.display = 'none';
+            sizeInfo.textContent = '';
+            currentResultBlob = null; currentResultFingerprint = ''; currentResultText = '';
+            document.getElementById('plainText').value = '';
+            document.getElementById('cipherText').value = '';
+            document.getElementById('cipherFingerprint').value = '';
+            document.getElementById('fileInfoEncrypt').innerHTML = '';
+            document.getElementById('fileInfoDecrypt').innerHTML = '';
+            document.getElementById('progressFillEncrypt').style.width = '0%';
+            document.getElementById('progressFillDecrypt').style.width = '0%';
+            currentFileEncrypt = null; currentFileDecrypt = null;
+            document.getElementById('fileInputEncrypt').value = '';
+            document.getElementById('fileInputDecrypt').value = '';
+            document.getElementById('cipherFileInput').value = '';
+            document.getElementById('cipherFileStatus').textContent = '未选择';
+            document.getElementById('cipherFileStatus').className = 'file-status';
+        });
+
+        function setupFileDrop(dropId, inputId, infoId, progressId, mode) {
+            const drop = document.getElementById(dropId);
+            const input = document.getElementById(inputId);
+            const info = document.getElementById(infoId);
+            const progress = document.getElementById(progressId);
+            drop.addEventListener('click', () => input.click());
+            drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+            drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+            drop.addEventListener('drop', (e) => {
+                e.preventDefault(); drop.classList.remove('dragover');
+                if (e.dataTransfer.files.length) {
+                    const file = e.dataTransfer.files[0];
+                    if (mode === 'encrypt') { currentFileEncrypt = file; info.innerHTML = `✅ <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) <span class="file-info-detail">类型: ${file.type || '未知'}</span>`; }
+                    else { currentFileDecrypt = file; info.innerHTML = `✅ <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) <span class="file-info-detail">类型: ${file.type || '未知'}</span>`; }
+                    progress.style.width = '0%';
+                }
+            });
+            input.addEventListener('change', () => {
+                if (input.files.length) {
+                    const file = input.files[0];
+                    if (mode === 'encrypt') { currentFileEncrypt = file; info.innerHTML = `✅ <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) <span class="file-info-detail">类型: ${file.type || '未知'}</span>`; }
+                    else { currentFileDecrypt = file; info.innerHTML = `✅ <strong>${file.name}</strong> (${(file.size / 1024).toFixed(1)} KB) <span class="file-info-detail">类型: ${file.type || '未知'}</span>`; }
+                    progress.style.width = '0%';
+                }
+            });
+        }
+        setupFileDrop('fileDropEncrypt', 'fileInputEncrypt', 'fileInfoEncrypt', 'progressFillEncrypt', 'encrypt');
+        setupFileDrop('fileDropDecrypt', 'fileInputDecrypt', 'fileInfoDecrypt', 'progressFillDecrypt', 'decrypt');
+
+        // ================================================================
+        // 文本解密上传逻辑（保留 2MB 限制）
+        // ================================================================
+        const uploadCipherBtn = document.getElementById('uploadCipherBtn');
+        const cipherFileInput = document.getElementById('cipherFileInput');
+        const cipherFileStatus = document.getElementById('cipherFileStatus');
+        const clearCipherFileBtn = document.getElementById('clearCipherFileBtn');
+        const cipherTextArea = document.getElementById('cipherText');
+        const cipherUploadArea = document.getElementById('cipherUploadArea');
+        const MAX_BASE64_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
+
+        uploadCipherBtn.addEventListener('click', () => cipherFileInput.click());
+
+        cipherFileInput.addEventListener('change', function(e) {
+            if (this.files.length) {
+                const file = this.files[0];
+                if (file.size > MAX_BASE64_UPLOAD_BYTES) {
+                    alert('文件太大，不会转换为 Base64 到文本框。请使用“文件解密”标签以进行流式解密。');
+                    cipherFileStatus.textContent = `⚠️ 文件过大 (${(file.size/1024).toFixed(1)} KB)，请使用文件解密`;
+                    cipherFileStatus.className = 'file-status';
+                    return;
+                }
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!['enc', 'bin'].includes(ext)) console.warn('文件扩展名不是 .enc 或 .bin，仍尝试读取…');
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const arrayBuffer = event.target.result;
+                        const u8 = new Uint8Array(arrayBuffer);
+                        const base64 = toBase64(u8);
+                        cipherTextArea.value = base64;
+                        cipherFileStatus.textContent = `✅ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                        cipherFileStatus.className = 'file-status loaded';
+                        console.log(`📂 已加载密文文件: ${file.name}，大小 ${file.size} 字节，已转 Base64 填入文本框`);
+                    } catch (err) {
+                        console.error('读取文件失败:', err);
+                        cipherFileStatus.textContent = `❌ 读取失败: ${err.message}`;
+                        cipherFileStatus.className = 'file-status';
+                        alert('读取文件失败：' + err.message);
+                    }
+                };
+                reader.onerror = function() { cipherFileStatus.textContent = '❌ 读取文件出错'; cipherFileStatus.className = 'file-status'; alert('读取文件时发生错误'); };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        clearCipherFileBtn.addEventListener('click', () => {
+            cipherFileInput.value = ''; cipherFileStatus.textContent = '未选择'; cipherFileStatus.className = 'file-status';
+        });
+
+        cipherUploadArea.addEventListener('dragover', (e) => { e.preventDefault(); cipherUploadArea.classList.add('dragover'); });
+        cipherUploadArea.addEventListener('dragleave', () => cipherUploadArea.classList.remove('dragover'));
+        cipherUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault(); cipherUploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                const file = e.dataTransfer.files[0];
+                const dt = new DataTransfer(); dt.items.add(file); cipherFileInput.files = dt.files; cipherFileInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // ================================================================
+        // 文本/文件 加解密 事件（保持之前逻辑）
+        // ================================================================
+        document.getElementById('encryptTextBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('encryptTextBtn'); btn.disabled = true; btn.textContent = '⏳ 加密中…';
+            console.log('========== 开始加密 ==========');
+            try {
+                const { password, iterations, chunkSize, enableCompress } = getParams();
+                if (!password) throw new Error('请输入主密码');
+                const plainText = document.getElementById('plainText').value;
+                if (!plainText) throw new Error('请输入明文');
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[加密] ');
+                let plainBytes = new TextEncoder().encode(plainText);
+                let compressed = null; let compressedFlag = false;
+                if (enableCompress) {
+                    compressed = await compressData(plainBytes);
+                    if (compressed !== null) { compressedFlag = true; wipeBuffer(plainBytes); plainBytes = compressed; }
+                }
+                const meta = { isText: true, filename: null, mime: null, salt, compressed: compressedFlag };
+                const { readable, writable } = new TransformStream(); const writer = writable.getWriter();
+                writer.write(plainBytes); writer.close();
+                // ===== 修改点 3：传入 plainBytes.length =====
+                const encryptStream = new EncryptStream(keys, meta, chunkSize, iterations, null, plainBytes.length);
+                const encryptedReadable = readable.pipeThrough(encryptStream);
+                const reader = encryptedReadable.getReader();
+                const chunks = []; let totalLen = 0;
+                while (true) {
+                    const { value, done } = await reader.read(); if (done) break; chunks.push(value); totalLen += value.length;
+                }
+                const full = new Uint8Array(totalLen); let pos = 0;
+                for (const c of chunks) { full.set(c, pos); pos += c.length; wipeBuffer(c); }
+                const fingerprint = uint8ToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', full)));
+                const base64 = toBase64(full);
+                showResult(base64, fingerprint, new Blob([full], { type: 'application/octet-stream' }), false);
+                sizeInfo.textContent = `加密后 ${(full.length / 1024).toFixed(1)} KB · 指纹: ${fingerprint}`;
+                downloadResultBtn.onclick = () => {
+                    const a = document.createElement('a'); const url = URL.createObjectURL(new Blob([full], { type: 'application/octet-stream' }));
+                    a.href = url; a.download = 'encrypted.enc'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+                };
+                wipeBuffer(keys.encKey); wipeBuffer(keys.macKey); wipeBuffer(full);
+                console.log('========== 加密完成 ==========');
+            } catch (e) {
+                console.error('加密失败:', e); showResult('加密失败: ' + e.message, null, null, false, null, true);
+            } finally { btn.disabled = false; btn.textContent = '🔒 执行加密'; }
+        });
+
+        document.getElementById('decryptTextBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('decryptTextBtn'); btn.disabled = true; btn.textContent = '⏳ 解密中…';
+            console.log('========== 开始解密 ==========');
+            try {
+                const { password } = getParams();
+                if (!password) throw new Error('请输入主密码');
+                const base64 = document.getElementById('cipherText').value.trim();
+                if (!base64) throw new Error('请在文本框中粘贴 Base64 密文，或先上传 .enc 文件（文件过大请使用文件解密标签）');
+                const expectedFingerprint = document.getElementById('cipherFingerprint').value.trim();
+                const fullCipher = fromBase64(base64);
+                if (expectedFingerprint) {
+                    const computed = uint8ToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', fullCipher)));
+                    if (computed !== expectedFingerprint) throw new Error(`指纹不匹配：${computed} != ${expectedFingerprint}`);
+                }
+                const parsed = parseHeader(fullCipher);
+                const salt = parsed.salt;
+                let iterations = parsed.iterations;
+                if (iterations === null) iterations = parseInt(document.getElementById('iterations').value) || 100000;
+                const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[解密] ');
+                const decryptStream = new DecryptStream(keys, null, 0);
+                const chunks = [fullCipher.slice(parsed.headerLen)];
+                const readable = new ReadableStream({
+                    start(controller) { for (const c of chunks) controller.enqueue(c); controller.close(); }
+                });
+                const decrypted = readable.pipeThrough(decryptStream);
+                const reader = decrypted.getReader();
+                const plainChunks = []; let totalPlain = 0;
+                while (true) {
+                    const { value, done } = await reader.read(); if (done) break; plainChunks.push(value); totalPlain += value.length;
+                }
+                const plainBytes = new Uint8Array(totalPlain); let pos = 0;
+                for (const c of plainChunks) { plainBytes.set(c, pos); pos += c.length; wipeBuffer(c); }
+                let finalBytes = plainBytes;
+                if (parsed.compressed) {
+                    const decomp = await decompressData(plainBytes);
+                    if (decomp === null) throw new Error('解压失败，数据可能已损坏');
+                    wipeBuffer(plainBytes); finalBytes = decomp;
+                }
+                const text = new TextDecoder().decode(finalBytes);
+                showResult(text, expectedFingerprint || '', new Blob([finalBytes], { type: 'text/plain' }), false, null);
+                sizeInfo.textContent = `解密后 ${(finalBytes.length / 1024).toFixed(1)} KB`;
+                wipeBuffer(keys.encKey); wipeBuffer(keys.macKey); wipeBuffer(finalBytes);
+                console.log('========== 解密完成 ==========');
+            } catch (e) {
+                console.error('解密失败:', e); showResult('解密失败: ' + e.message, null, null, false, null, true);
+            } finally { btn.disabled = false; btn.textContent = '🔓 执行解密'; }
+        });
+
+        // 文件加密 / 解密事件保留此前实现（使用 EncryptStream / DecryptStream）
+        document.getElementById('encryptFileBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('encryptFileBtn'); btn.disabled = true; btn.textContent = '⏳ 加密中…';
+            try {
+                const { password, iterations, chunkSize } = getParams();
+                if (!password) throw new Error('请输入主密码');
+                if (!currentFileEncrypt) throw new Error('请先选择文件');
+                const file = currentFileEncrypt;
+                const salt = crypto.getRandomValues(new Uint8Array(16));
+                const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[文件加密] ');
+                const meta = { isText: false, filename: file.name, mime: file.type || 'application/octet-stream', salt, compressed: false };
+                const fileStream = file.stream();
+                // ===== 修改点 2：传入 file.size =====
+                const encryptStream = new EncryptStream(keys, meta, chunkSize, iterations, 
+                    (processed, total) => {
+                        const pct = Math.min(100, (processed / total) * 100);
+                        document.getElementById('progressFillEncrypt').style.width = pct + '%';
+                    }, 
+                    file.size
+                );
+
+                if (window.showSaveFilePicker) {
+                    const fileHandle = await showSaveFilePicker({ suggestedName: file.name + '.enc', types: [{ description: '加密文件', accept: { 'application/octet-stream': ['.enc'] } }] });
+                    const writable = await fileHandle.createWritable();
+                    await fileStream.pipeThrough(encryptStream).pipeTo(writable);
+                    await writable.close();
+                    showResult(`✅ 加密完成\n文件: ${file.name}.enc`, null, null, true); sizeInfo.textContent = '加密完成';
+                } else {
+                    const reader = fileStream.pipeThrough(encryptStream).getReader();
+                    const chunks = []; let total = 0;
+                    while (true) {
+                        const { value, done } = await reader.read(); if (done) break; chunks.push(value); total += value.length;
+                    }
+                    const full = new Uint8Array(total); let pos = 0;
+                    for (const c of chunks) { full.set(c, pos); pos += c.length; }
+                    const blob = new Blob([full], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = file.name + '.enc'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 10000);
+                    showResult(`✅ 加密完成（降级下载）\n文件: ${file.name}.enc`, null, blob, true); sizeInfo.textContent = `加密后 ${(full.length / 1024).toFixed(1)} KB`;
+                    wipeBuffer(full);
+                }
+                document.getElementById('progressFillEncrypt').style.width = '100%';
+                wipeBuffer(keys.encKey); wipeBuffer(keys.macKey);
+            } catch (e) {
+                console.error('文件加密失败:', e); showResult('加密失败: ' + e.message, null, null, false, null, true);
+            } finally { btn.disabled = false; btn.textContent = '🔒 加密并流式保存 (.enc)'; }
+        });
+
+        document.getElementById('decryptFileBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('decryptFileBtn'); btn.disabled = true; btn.textContent = '⏳ 解密中…';
+            try {
+                const { password } = getParams();
+                if (!password) throw new Error('请输入主密码');
+                if (!currentFileDecrypt) throw new Error('请先选择要解密的 .enc 文件');
+                const file = currentFileDecrypt;
+                const headerSlice = await file.slice(0, 8192).arrayBuffer();
+                const headerBytes = new Uint8Array(headerSlice);
+                const parsed = parseHeader(headerBytes);
+                const salt = parsed.salt;
+                let iterations = parsed.iterations;
+                if (iterations === null) iterations = parseInt(document.getElementById('iterations').value) || 100000;
+                const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[文件解密] ');
+                const suggestedName = parsed.filename || 'decrypted.bin';
+
+                if (window.showSaveFilePicker) {
+                    const fileHandle = await showSaveFilePicker({ suggestedName: suggestedName, types: [{ description: '解密文件', accept: { 'application/octet-stream': ['.*'] } }] });
+                    const writable = await fileHandle.createWritable();
+                    const restStream = file.slice(parsed.headerLen).stream();
+                    const decryptStream = new DecryptStream(keys, (processed, total) => {
+                        const pct = Math.min(100, (processed / total) * 100);
+                        document.getElementById('progressFillDecrypt').style.width = pct + '%';
+                    }, file.size - parsed.headerLen);
+                    await restStream.pipeThrough(decryptStream).pipeTo(writable);
+                    await writable.close();
+                    showResult(`✅ 解密完成\n文件: ${suggestedName}`, null, null, true); sizeInfo.textContent = '解密完成';
+                } else {
+                    const restStream = file.slice(parsed.headerLen).stream();
+                    const decryptStream = new DecryptStream(keys, (processed, total) => {
+                        const pct = Math.min(100, (processed / total) * 100);
+                        document.getElementById('progressFillDecrypt').style.width = pct + '%';
+                    }, file.size - parsed.headerLen);
+                    const reader = restStream.pipeThrough(decryptStream).getReader();
+                    const chunks = []; let total = 0;
+                    while (true) {
+                        const { value, done } = await reader.read(); if (done) break; chunks.push(value); total += value.length;
+                    }
+                    const full = new Uint8Array(total); let pos = 0;
+                    for (const c of chunks) { full.set(c, pos); pos += c.length; }
+                    const blob = new Blob([full], { type: 'application/octet-stream' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = suggestedName; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 10000);
+                    showResult(`✅ 解密完成（降级下载）\n文件: ${suggestedName}`, null, blob, true); sizeInfo.textContent = `解密后 ${(full.length / 1024).toFixed(1)} KB`;
+                    wipeBuffer(full);
+                }
+                document.getElementById('progressFillDecrypt').style.width = '100%';
+                wipeBuffer(keys.encKey); wipeBuffer(keys.macKey);
+            } catch (e) {
+                console.error('文件解密失败:', e); showResult('解密失败: ' + e.message, null, null, false, null, true);
+            } finally { btn.disabled = false; btn.textContent = '🔓 解密并流式保存原文件'; }
+        });
+    </script>
+</body>
+</html>
