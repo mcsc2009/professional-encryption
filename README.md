@@ -64,6 +64,13 @@ This is a browser-based streaming encryption demo (HTML/JS) implementing:
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). See LICENSE in the repository.
 
+---
+
+**许可恢复 / License restoration (audit note)**
+
+- 中文：由于未知原因，仓库 LICENSE 的部分内容曾被意外翻译成中文。现已恢复为官方 GNU Affero General Public License v3（英文原文），以便审计。恢复提交 SHA：6423369237acd72744b86af9cf085e397f8cf296。
+- English: For auditability, part of the repository LICENSE was accidentally translated into Chinese; it has now been restored to the official GNU Affero General Public License v3 (English). Restore commit SHA: 6423369237acd72744b86af9cf085e397f8cf296.
+
 
 ## 贡献 / Contributing
 
