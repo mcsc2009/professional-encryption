@@ -37,6 +37,9 @@ This is a browser-based streaming encryption demo (HTML/JS) implementing:
 5. For text, use the Text tab (you may upload a small `.enc` to auto-fill Base64—use File tab for large files).
 6. For files, use the File tab; browsers that support `showSaveFilePicker` will save without copying to memory.
 
+### 或者...访问网站 / or...visit a website
+
+https://jiamizhe.netlify.app/
 
 ## 安全说明 / Security Notes
 
