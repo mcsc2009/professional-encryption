@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>专业级加密 · 最终修复版（文本解密支持上传密文文件）</title>
+    <title>专业级加密 · v0x03 合并版（安全加固 + 文件类型显示 + 下载修复）</title>
     <style>
-        /* ===== 样式与之前相同（略，保持原样） ===== */
         * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
@@ -44,6 +43,7 @@
         .file-drop { border: 2px dashed #cbd5e1; border-radius: 16px; padding: 28px; text-align: center; color: #64748b; cursor: pointer; transition: 0.2s; background: #f8fafc; }
         .file-drop.dragover { border-color: #3b82f6; background: #eff6ff; }
         .file-drop input { display: none; }
+        .file-info-detail { display: inline-block; margin-left: 8px; font-size: 0.8rem; color: #64748b; background: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
 
         .btn { background: #3b82f6; color: white; border: none; padding: 10px 24px; border-radius: 40px; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
         .btn:hover:not(:disabled) { background: #2563eb; transform: translateY(-1px); }
@@ -78,25 +78,15 @@
         .cipher-upload-area .hint { font-size: 0.8rem; color: #94a3b8; margin-left: 4px; }
 
         @media (max-width:700px) {
-            .grid-2 { grid-template-columns: 1fr; }
             .row { flex-direction: column; align-items: stretch; }
             .row label { min-width: auto; }
             .settings-panel { flex-direction: column; align-items: stretch; }
             .cipher-upload-area { flex-direction: column; align-items: stretch; }
         }
 
-        /* switch 样式，保留但改为 label 包裹 input */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 22px;
-            margin: 0 6px 0 0;
-        }
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; margin: 0 6px 0 0; }
         .switch input { opacity: 0; width: 0; height: 0; position: absolute; left: -9999px; }
-        .switch .slider {
-            position: relative; display: block; width: 40px; height: 22px; background: #cbd5e1; border-radius: 22px; transition: .3s;
-        }
+        .switch .slider { position: relative; display: block; width: 40px; height: 22px; background: #cbd5e1; border-radius: 22px; transition: .3s; }
         .switch .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: .3s; }
         .switch input:checked + .slider { background: #3b82f6; }
         .switch input:checked + .slider:before { transform: translateX(18px); }
@@ -104,8 +94,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔐 专业级加密 · 最终修复版（文本解密支持上传密文文件）</h1>
-        <div class="sub">加密/解密独立 · 流式零拷贝 · 指纹校验 · 头部解析已修复 · 文本解密可上传 .enc 文件</div>
+        <h1>🔐 专业级加密 · v0x03 合并版</h1>
+        <div class="sub">头部认证 · 块大小 DoS 防护 · 截断检测 · Base64 容错 · 密钥擦除修正 · 文件类型显示 · 下载修复</div>
 
         <div id="compatCheck" class="status-ok">✅ Web Crypto API 可用 · 支持流式</div>
 
@@ -242,15 +232,15 @@
         </div>
 
         <div class="note">
-            ⚡ 完全自包含，无外部依赖。AES-256-GCM 逐块加密，链式 HMAC 防篡改，PBKDF2 自适应。
+            ⚡ 完全自包含，无外部依赖。AES-256-GCM 逐块加密，链式 HMAC 覆盖头部与全部密文块，PBKDF2 自适应。
             文件模式利用 <code>showSaveFilePicker</code> 零拷贝保存（不支持时自动降级）。
-            <strong>🆕 文本解密现已支持上传 .enc 文件（但如果文件大于 2MB 请使用文件解密标签以防内存问题）</strong>。
+            只接受 v0x03 格式，头部/块大小/缓冲总量均有硬上限；<strong>块数由头部声明并与实际解出块数比对，可检测块边界截断</strong>。
         </div>
     </div>
 
     <script>
         // ================================================================
-        // 日志面板（可开关） - 拦截 console，但只有 enableLogs=true 时才写入面板
+        // 日志面板
         // ================================================================
         (function setupLogPanel() {
             const panel = document.getElementById('logPanel');
@@ -258,7 +248,7 @@
             let enableLogs = document.getElementById('enableLogs').checked;
 
             function addLog(level, args) {
-                if (!enableLogs) return; // 关闭时不记录到面板
+                if (!enableLogs) return;
                 const now = new Date();
                 const time = now.toLocaleTimeString() + '.' + String(now.getMilliseconds()).padStart(3, '0');
                 const message = args.map(arg => {
@@ -282,7 +272,6 @@
                 return div.innerHTML;
             }
 
-            // 保留原 console 行为，但 conditionally 记录到面板
             const origLog = console.log, origWarn = console.warn, origError = console.error, origDebug = console.debug;
             console.log = function(...args) { origLog.apply(console, args); addLog('info', args); };
             console.warn = function(...args) { origWarn.apply(console, args); addLog('warn', args); };
@@ -294,31 +283,23 @@
                 const text = panel.innerText;
                 navigator.clipboard.writeText(text).then(() => alert('日志已复制')).catch(() => {
                     const ta = document.createElement('textarea');
-                    ta.value = text;
-                    document.body.appendChild(ta);
-                    ta.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(ta);
+                    ta.value = text; document.body.appendChild(ta); ta.select();
+                    document.execCommand('copy'); document.body.removeChild(ta);
                     alert('日志已复制');
                 });
             });
 
-            // 绑定开关，切换时显示/隐藏面板并启/禁记录
             const enableLogsInput = document.getElementById('enableLogs');
             function updateLogState() {
                 enableLogs = enableLogsInput.checked;
                 panel.style.display = enableLogs ? 'block' : 'none';
-                if (!enableLogs) {
-                    // 可选：清空面板以防敏感信息残留
-                    // panel.innerHTML = '';
-                }
             }
             enableLogsInput.addEventListener('change', updateLogState);
             updateLogState();
         })();
 
         // ================================================================
-        // 工具函数与兼容检查
+        // 兼容性检查
         // ================================================================
         (function checkCompat() {
             const el = document.getElementById('compatCheck');
@@ -330,11 +311,14 @@
             if (!window.showSaveFilePicker) {
                 const msg = document.createElement('div');
                 msg.className = 'compat-warning';
-                msg.innerHTML = '<strong>⚠️ 提示</strong><div class="hint">当前浏览器不支持 showSaveFilePicker，大文件将降级到 Blob 下载（可能内存不足）。建议使用 Chrome 86+ 以获得最佳体验。</div>';
+                msg.innerHTML = '<strong>⚠️ 提示</strong><div class="hint">当前浏览器不支持 showSaveFilePicker，大文件将降级到 Blob 下载（可能内存不足）。建议使用 Chrome 86+。</div>';
                 el.parentNode.insertBefore(msg, el.nextSibling);
             }
         })();
 
+        // ================================================================
+        // 工具函数
+        // ================================================================
         function uint8ToHex(u8) { return Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join(''); }
 
         function wipeBuffer(buf) {
@@ -354,9 +338,8 @@
             return diff === 0;
         }
 
-        // 优化的 toBase64：分块 push 到数组再 join，避免频繁字符串拼接
         function toBase64(u8) {
-            const chunkSize = 0x8000; // 32k
+            const chunkSize = 0x8000;
             const chunks = [];
             for (let i = 0; i < u8.length; i += chunkSize) {
                 const sub = u8.subarray(i, i + chunkSize);
@@ -365,9 +348,11 @@
             return btoa(chunks.join(''));
         }
 
+        // ★ 修复 6：atob 前去除所有空白字符（换行/空格/tab）
         function fromBase64(str) {
             try {
-                const binary = atob(str);
+                const cleaned = String(str).replace(/\s+/g, '');
+                const binary = atob(cleaned);
                 const u8 = new Uint8Array(binary.length);
                 for (let i = 0; i < binary.length; i++) u8[i] = binary.charCodeAt(i);
                 return u8;
@@ -376,34 +361,81 @@
             }
         }
 
+        function concatBytes(...arrs) {
+            let total = 0;
+            for (const a of arrs) total += a.length;
+            const out = new Uint8Array(total);
+            let pos = 0;
+            for (const a of arrs) { out.set(a, pos); pos += a.length; }
+            return out;
+        }
+
+        // ★ 修复 7：把"读 + 边界检查"封装到一起，避免未来重构时调换顺序
+        function readUint16BE(bytes, pos, context) {
+            if (pos + 2 > bytes.length) {
+                throw new Error(`头部不完整（${context}）：需要 2 字节，从偏移 ${pos} 起只有 ${bytes.length - pos} 字节。`);
+            }
+            return (bytes[pos] << 8) | bytes[pos + 1];
+        }
+
         // ================================================================
-        // 核心加解密（保持之前已修正的安全措施）
+        // 常量
         // ================================================================
         const MAGIC = new Uint8Array([0x45, 0x4E, 0x43, 0x00]);
-        const SUPPORTED_VERSIONS = [0x01, 0x02];
+        const VERSION = 0x03;
         const HMAC_LEN = 32;
         const NONCE_LEN = 12;
+        const GCM_TAG_LEN = 16; // AES-GCM 认证标签长度：密文块 = 明文块 + 16
 
+        const MIN_ITERATIONS = 10_000;
+        const MAX_ITERATIONS = 10_000_000;
+
+        const MIN_BLOCK_SIZE = 1024;
+        const MAX_BLOCK_SIZE = 64 * 1024 * 1024;
+        const DEFAULT_CHUNK_SIZE = 1024 * 1024;
+
+        // ================================================================
+        // 密钥派生
+        // ★ 修复 3：无论是否加载密钥文件，mixed / baseKey 都会被擦除
+        // ================================================================
         async function deriveKey(password, salt, keyFileBytes, iterations, logPrefix = '') {
+            if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
+                throw new Error(`迭代次数 ${iterations} 超出允许范围 [${MIN_ITERATIONS}, ${MAX_ITERATIONS}]，拒绝执行（防 DoS）。`);
+            }
             const enc = new TextEncoder();
             console.log(`${logPrefix} 派生密钥: 迭代=${iterations}, keyFile=${keyFileBytes ? keyFileBytes.length + ' bytes' : '无'}`);
             const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveBits']);
             const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, keyMaterial, 512);
-            let baseKey = new Uint8Array(bits);
+
+            const baseKey = new Uint8Array(bits);
             let mixed = baseKey;
             if (keyFileBytes && keyFileBytes.length > 0) {
                 const hkdfKey = await crypto.subtle.importKey('raw', baseKey, { name: 'HKDF' }, false, ['deriveBits']);
-                const derivedBits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: keyFileBytes, info: new TextEncoder().encode('key-mix') }, hkdfKey, 512);
+                const derivedBits = await crypto.subtle.deriveBits(
+                    { name: 'HKDF', hash: 'SHA-256', salt: keyFileBytes, info: new TextEncoder().encode('key-mix') },
+                    hkdfKey, 512
+                );
                 mixed = new Uint8Array(derivedBits);
-                wipeBuffer(baseKey);
             }
+
             const encKey = mixed.slice(0, 32);
             const macKey = mixed.slice(32, 64);
+
+            // ★ 统一擦除：先擦 mixed；如果 mixed 和 baseKey 是两个不同数组，再擦 baseKey
+            wipeBuffer(mixed);
+            if (mixed !== baseKey) wipeBuffer(baseKey);
+
             console.log(`${logPrefix} 密钥派生完成`);
             return { encKey, macKey };
         }
 
+        // ================================================================
+        // 头部构建 / 解析
+        // ================================================================
         function buildHeader(meta, chunkSize, totalChunks, iterations) {
+            if (!Number.isInteger(chunkSize) || chunkSize < MIN_BLOCK_SIZE || chunkSize > MAX_BLOCK_SIZE) {
+                throw new Error(`加密端 chunkSize ${chunkSize} 非法，拒绝构造头部。`);
+            }
             const hasFilename = !!(meta.filename && meta.filename.length > 0);
             const isText = meta.isText || false;
             let flags = 0;
@@ -425,7 +457,7 @@
             const header = new Uint8Array(headerLen);
             let pos = 0;
             header.set(MAGIC, pos); pos += 4;
-            header[pos++] = 0x02;
+            header[pos++] = VERSION;
             header[pos++] = flags;
             header.set(salt, pos); pos += 16;
             new DataView(header.buffer).setUint32(pos, iterations, false); pos += 4;
@@ -448,40 +480,38 @@
         }
 
         function parseHeader(headerBytes) {
-            if (headerBytes.length < 4 + 1 + 1 + 16) throw new Error('头部太短，可能不是有效的加密文件或密文已损坏。');
-            const magic = headerBytes.slice(0, 4);
-            if (magic[0] !== 0x45 || magic[1] !== 0x4E || magic[2] !== 0x43 || magic[3] !== 0x00) throw new Error('无效的密文格式（魔数不匹配）。');
+            const MIN_HEADER = 4 + 1 + 1 + 16 + 4 + 4 + 4;
+            if (headerBytes.length < MIN_HEADER) throw new Error('头部太短，可能不是有效的 v0x03 加密文件或密文已损坏。');
+            if (headerBytes[0] !== 0x45 || headerBytes[1] !== 0x4E || headerBytes[2] !== 0x43 || headerBytes[3] !== 0x00) {
+                throw new Error('无效的密文格式（魔数不匹配）。');
+            }
             const version = headerBytes[4];
-            if (!SUPPORTED_VERSIONS.includes(version)) throw new Error(`不支持的版本 ${version}，请升级工具。`);
+            if (version !== VERSION) {
+                throw new Error(`不支持的版本 0x${version.toString(16).padStart(2, '0')}。本工具只接受 v0x03 格式，请使用相同版本重新加密。`);
+            }
             const flags = headerBytes[5];
             const compressed = (flags & 0b001) !== 0;
             const hasFilename = (flags & 0b010) !== 0;
             const isText = (flags & 0b100) !== 0;
             let pos = 6;
             const salt = headerBytes.slice(pos, pos + 16); pos += 16;
-            let iterations = null, chunkSize = null, totalChunks = null;
-            if (version === 0x02) {
-                if (headerBytes.length < pos + 4) throw new Error('头部不完整（缺少迭代次数）');
-                iterations = readUint32(headerBytes, pos); pos += 4;
-                if (headerBytes.length < pos + 4) throw new Error('头部不完整（缺少分块大小）');
-                chunkSize = readUint32(headerBytes, pos); pos += 4;
-                if (headerBytes.length < pos + 4) throw new Error('头部不完整（缺少总块数）');
-                totalChunks = readUint32(headerBytes, pos); pos += 4;
-            } else {
-                if (headerBytes.length < pos + 4) throw new Error('头部不完整');
-                chunkSize = readUint32(headerBytes, pos); pos += 4;
-                if (headerBytes.length < pos + 4) throw new Error('头部不完整');
-                totalChunks = readUint32(headerBytes, pos); pos += 4;
+            const iterations = readUint32(headerBytes, pos); pos += 4;
+            if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) {
+                throw new Error(`头部中的迭代次数 ${iterations} 超出允许范围 [${MIN_ITERATIONS}, ${MAX_ITERATIONS}]，拒绝执行（防 DoS）。`);
             }
+            const chunkSize = readUint32(headerBytes, pos); pos += 4;
+            if (!Number.isInteger(chunkSize) || chunkSize < MIN_BLOCK_SIZE || chunkSize > MAX_BLOCK_SIZE) {
+                throw new Error(`头部 chunkSize ${chunkSize} 超出允许范围 [${MIN_BLOCK_SIZE}, ${MAX_BLOCK_SIZE}]，拒绝执行（防 OOM）。`);
+            }
+            const totalChunks = readUint32(headerBytes, pos); pos += 4;
             let filename = null, mime = null;
             if (hasFilename) {
-                if (headerBytes.length < pos + 2) throw new Error('头部不完整');
-                const nameLen = (headerBytes[pos] << 8) | headerBytes[pos + 1]; pos += 2;
-                if (headerBytes.length < pos + nameLen) throw new Error('头部不完整');
+                // ★ 修复 7：所有长度读取统一走 readUint16BE（内部做边界检查）
+                const nameLen = readUint16BE(headerBytes, pos, 'nameLen'); pos += 2;
+                if (headerBytes.length < pos + nameLen) throw new Error('头部不完整（filename 越界）');
                 filename = new TextDecoder().decode(headerBytes.slice(pos, pos + nameLen)); pos += nameLen;
-                if (headerBytes.length < pos + 2) throw new Error('头部不完整');
-                const mimeLen = (headerBytes[pos] << 8) | headerBytes[pos + 1]; pos += 2;
-                if (headerBytes.length < pos + mimeLen) throw new Error('头部不完整');
+                const mimeLen = readUint16BE(headerBytes, pos, 'mimeLen'); pos += 2;
+                if (headerBytes.length < pos + mimeLen) throw new Error('头部不完整（mime 越界）');
                 mime = new TextDecoder().decode(headerBytes.slice(pos, pos + mimeLen)); pos += mimeLen;
             }
             const headerLen = pos;
@@ -489,118 +519,231 @@
             return { version, flags, compressed, hasFilename, isText, salt, iterations, chunkSize, totalChunks, filename, mime, headerLen };
         }
 
-        async function getChainInit(keyBytes) { const hash = await crypto.subtle.digest('SHA-256', keyBytes); return new Uint8Array(hash); }
+        // ================================================================
+        // 链初始化
+        // ================================================================
+        async function computeChainInit(hmacCryptoKey, macKeyBytes, headerBytes) {
+            const baseInit = new Uint8Array(await crypto.subtle.digest('SHA-256', macKeyBytes));
+            const combined = concatBytes(baseInit, headerBytes);
+            const out = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, combined));
+            wipeBuffer(combined);
+            wipeBuffer(baseInit);
+            return out.slice(0, HMAC_LEN);
+        }
 
-        // ===== 修改点 1：EncryptStream 增加 totalBytes 参数 =====
+        // ================================================================
+        // EncryptStream
+        // 空输入 → totalChunks = 0，与 DecryptStream 的块数校验保持一致
+        // ================================================================
         class EncryptStream extends TransformStream {
             constructor(keys, meta, chunkSize, iterations, onProgress, totalBytes) {
-                let prevHash = null, headerWritten = false, initPromise = null;
-                let processed = 0, total = totalBytes || 0, blockIndex = 0;
-                let encCryptoKey = null, hmacCryptoKey = null;
-                // 保存 totalBytes 供 transform 使用
-                const totalSize = totalBytes || 0;
+                if (!Number.isInteger(chunkSize) || chunkSize < MIN_BLOCK_SIZE || chunkSize > MAX_BLOCK_SIZE) {
+                    throw new Error(`加密端 chunkSize ${chunkSize} 非法，拒绝构造加密流。`);
+                }
+                let prevHash = null;
+                let headerWritten = false;
+                let initPromise = null;
+                let processed = 0;
+                const total = totalBytes || 0;
+                let blockIndex = 0;
+                let encCryptoKey = null;
+                let hmacCryptoKey = null;
+                let prebuiltHeader = null;
+                // ★ 分块修复：跨 chunk 边界缓存，保证每个块严格为 chunkSize（末块可短）
+                let carry = new Uint8Array(0);
+                let carryLen = 0;
+
+                // 加密并输出单个块（含链式 HMAC）
+                const emitBlock = async (blockData, controller) => {
+                    const nonce = crypto.getRandomValues(new Uint8Array(NONCE_LEN));
+                    const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, encCryptoKey, blockData));
+                    const toMac = concatBytes(prevHash, nonce, encrypted);
+                    const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, toMac));
+                    prevHash = hmac.slice(0, HMAC_LEN);
+                    const blockOut = new Uint8Array(4 + nonce.length + encrypted.length + HMAC_LEN);
+                    new DataView(blockOut.buffer).setUint32(0, encrypted.length, false);
+                    blockOut.set(nonce, 4);
+                    blockOut.set(encrypted, 4 + nonce.length);
+                    blockOut.set(hmac, 4 + nonce.length + encrypted.length);
+                    controller.enqueue(blockOut);
+                    processed += blockData.length;
+                    if (onProgress && total) onProgress(processed, total);
+                    wipeBuffer(encrypted); wipeBuffer(nonce); wipeBuffer(hmac); wipeBuffer(toMac);
+                    blockIndex++;
+                };
+
                 super({
                     start() {
                         initPromise = (async () => {
-                            prevHash = await getChainInit(keys.macKey);
                             encCryptoKey = await crypto.subtle.importKey('raw', keys.encKey, { name: 'AES-GCM' }, false, ['encrypt']);
                             hmacCryptoKey = await crypto.subtle.importKey('raw', keys.macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-                            console.log('加密流初始化，prevHash (初始链) 已生成');
+
+                            // 空输入 → 0 块；非空 → ceil(total/chunkSize)，至少 1
+                            const totalChunks = total > 0 ? Math.ceil(total / chunkSize) : 0;
+                            prebuiltHeader = buildHeader(meta, chunkSize, totalChunks, iterations);
+
+                            prevHash = await computeChainInit(hmacCryptoKey, keys.macKey, prebuiltHeader);
+                            console.log(`加密流初始化：头部已纳入 HMAC 链，声明块数=${totalChunks}`);
                         })();
                         return initPromise;
                     },
                     async transform(chunk, controller) {
                         await initPromise;
                         if (!headerWritten) {
-                            // 计算真实总块数，至少为 1
-                            const totalChunks = totalSize > 0 ? Math.ceil(totalSize / chunkSize) : 1;
-                            const header = buildHeader(meta, chunkSize, totalChunks, iterations);
-                            controller.enqueue(header);
+                            controller.enqueue(prebuiltHeader);
                             headerWritten = true;
                         }
+                        // ★ 修复：先与上次残留拼接，再按 chunkSize 严格切块，跨 chunk 边界不断块
+                        let data = chunk;
+                        if (carryLen > 0) {
+                            data = concatBytes(carry.subarray(0, carryLen), chunk);
+                            carry = new Uint8Array(0); carryLen = 0;
+                        }
                         let offset = 0;
-                        while (offset < chunk.length) {
-                            const end = Math.min(offset + chunkSize, chunk.length);
-                            const blockData = chunk.subarray(offset, end);
-                            const nonce = crypto.getRandomValues(new Uint8Array(NONCE_LEN));
-                            const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, encCryptoKey, blockData));
-                            const toMac = new Uint8Array(prevHash.length + nonce.length + encrypted.length);
-                            toMac.set(prevHash, 0); toMac.set(nonce, prevHash.length); toMac.set(encrypted, prevHash.length + nonce.length);
-                            const hmac = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, toMac));
-                            prevHash = hmac.slice(0, HMAC_LEN);
-                            const blockOut = new Uint8Array(4 + nonce.length + encrypted.length + HMAC_LEN);
-                            new DataView(blockOut.buffer).setUint32(0, encrypted.length, false);
-                            blockOut.set(nonce, 4);
-                            blockOut.set(encrypted, 4 + nonce.length);
-                            blockOut.set(hmac, 4 + nonce.length + encrypted.length);
-                            controller.enqueue(blockOut);
-                            processed += (end - offset);
-                            if (onProgress && total) onProgress(processed, total);
-                            wipeBuffer(encrypted); wipeBuffer(nonce); wipeBuffer(hmac); wipeBuffer(toMac);
-                            offset = end; blockIndex++;
+                        while (data.length - offset >= chunkSize) {
+                            await emitBlock(data.subarray(offset, offset + chunkSize), controller);
+                            offset += chunkSize;
+                        }
+                        const rem = data.length - offset;
+                        if (rem > 0) { carry = data.slice(offset); carryLen = rem; }
+                    },
+                    async flush(controller) {
+                        await initPromise;
+                        if (!headerWritten) {
+                            controller.enqueue(prebuiltHeader);
+                            headerWritten = true;
+                        }
+                        // 输出最后一个不足整块的残留数据，使实际块数 === 头部声明的 ceil(total/chunkSize)
+                        if (carryLen > 0) {
+                            await emitBlock(carry.subarray(0, carryLen), controller);
+                            carry = new Uint8Array(0); carryLen = 0;
                         }
                     }
                 });
             }
         }
 
+        // ================================================================
+        // DecryptStream
+        // ★ 修复 2：新增 expectedChunks，flush 时对比实际解出块数，检测截断攻击
+        // ================================================================
         class DecryptStream extends TransformStream {
-            constructor(keys, onProgress, totalBytes) {
-                let buffer = new Uint8Array(0), prevHash = null, initPromise = null, processed = 0, total = totalBytes || 0, blockIndex = 0;
-                let encCryptoKey = null, hmacCryptoKey = null;
+            constructor(keys, onProgress, totalBytes, headerBytes, maxBlockSize, expectedChunks) {
+                if (!headerBytes || headerBytes.length === 0) {
+                    throw new Error('DecryptStream 需要头部字节参与链初始化。');
+                }
+                if (!Number.isInteger(maxBlockSize) || maxBlockSize < MIN_BLOCK_SIZE || maxBlockSize > MAX_BLOCK_SIZE) {
+                    throw new Error(`maxBlockSize 参数非法 (${maxBlockSize})，拒绝构造解密流。`);
+                }
+                // expectedChunks >= 0：空密文（只有头部）也合法
+                if (!Number.isInteger(expectedChunks) || expectedChunks < 0) {
+                    throw new Error(`expectedChunks 参数非法 (${expectedChunks})，拒绝构造解密流。`);
+                }
+                const hardBufCap = 4 + NONCE_LEN + (maxBlockSize + GCM_TAG_LEN) + HMAC_LEN + 1024 * 1024;
+
+                let prevHash = null;
+                let initPromise = null;
+                let processed = 0;
+                const total = totalBytes || 0;
+                let blockIndex = 0;
+                let encCryptoKey = null;
+                let hmacCryptoKey = null;
+
+                let buf = new Uint8Array(Math.min(hardBufCap, 64 * 1024));
+                let bufLen = 0;
+
+                const processBuffer = async (controller) => {
+                    while (bufLen >= 4) {
+                        const view = new DataView(buf.buffer, buf.byteOffset);
+                        const blockLen = view.getUint32(0, false);
+
+                        // 密文块 = 明文块 + 16 字节 GCM tag，上限需加上 tag 长度
+                        if (blockLen > maxBlockSize + GCM_TAG_LEN) {
+                            throw new Error(`密文块大小 ${blockLen} 超过上限 ${maxBlockSize + GCM_TAG_LEN}（含 GCM tag），拒绝解密以防 OOM。`);
+                        }
+
+                        const totalBlockSize = 4 + NONCE_LEN + blockLen + HMAC_LEN;
+                        if (bufLen < totalBlockSize) break;
+
+                        const nonce = buf.subarray(4, 4 + NONCE_LEN);
+                        const encrypted = buf.subarray(4 + NONCE_LEN, 4 + NONCE_LEN + blockLen);
+                        const hmac = buf.subarray(4 + NONCE_LEN + blockLen, 4 + NONCE_LEN + blockLen + HMAC_LEN);
+
+                        const toMac = concatBytes(prevHash, nonce, encrypted);
+                        const computedHmac = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, toMac));
+                        if (!safeCompare(computedHmac, hmac)) {
+                            throw new Error(`链式 HMAC 验证失败（块 #${blockIndex}）：主密码/密钥文件错误，或密文/头部被篡改。`);
+                        }
+                        prevHash = hmac.slice(0, HMAC_LEN);
+
+                        const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, encCryptoKey, encrypted));
+                        controller.enqueue(plain);
+                        processed += plain.length;
+                        if (onProgress && total) onProgress(processed, total);
+
+                        wipeBuffer(computedHmac);
+                        wipeBuffer(toMac);
+
+                        const remaining = bufLen - totalBlockSize;
+                        if (remaining > 0) buf.copyWithin(0, totalBlockSize, bufLen);
+                        bufLen = remaining;
+                        blockIndex++;
+                    }
+                };
+
                 super({
                     start() {
                         initPromise = (async () => {
-                            prevHash = await getChainInit(keys.macKey);
                             encCryptoKey = await crypto.subtle.importKey('raw', keys.encKey, { name: 'AES-GCM' }, false, ['decrypt']);
                             hmacCryptoKey = await crypto.subtle.importKey('raw', keys.macKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-                            console.log('解密流初始化，prevHash (初始链) 已生成');
+                            prevHash = await computeChainInit(hmacCryptoKey, keys.macKey, headerBytes);
+                            console.log(`解密流初始化：maxBlockSize=${maxBlockSize}, expectedChunks=${expectedChunks}, hardBufCap=${hardBufCap}`);
                         })();
                         return initPromise;
                     },
                     async transform(chunk, controller) {
                         await initPromise;
-                        const newBuf = new Uint8Array(buffer.length + chunk.length);
-                        newBuf.set(buffer, 0); newBuf.set(chunk, buffer.length); buffer = newBuf;
-                        await this._processBuffer(controller);
+                        const needed = bufLen + chunk.length;
+                        if (needed > buf.length) {
+                            if (needed > hardBufCap) {
+                                throw new Error(`解密缓冲区需要 ${needed} 字节，超过硬上限 ${hardBufCap}，拒绝以防 OOM。`);
+                            }
+                            const newCap = Math.min(hardBufCap, Math.max(buf.length * 2, needed, 64 * 1024));
+                            const newBuf = new Uint8Array(newCap);
+                            newBuf.set(buf.subarray(0, bufLen));
+                            buf = newBuf;
+                        }
+                        buf.set(chunk, bufLen);
+                        bufLen = needed;
+                        await processBuffer(controller);
                     },
                     async flush(controller) {
                         await initPromise;
-                        if (buffer.length > 0) controller.error(new Error('解密数据不完整，可能密文被截断'));
-                    },
-                    async _processBuffer(controller) {
-                        while (buffer.length >= 4) {
-                            const blockLen = new DataView(buffer.buffer, buffer.byteOffset).getUint32(0, false);
-                            const totalBlockSize = 4 + NONCE_LEN + blockLen + HMAC_LEN;
-                            if (buffer.length < totalBlockSize) break;
-                            const nonce = buffer.slice(4, 4 + NONCE_LEN);
-                            const encrypted = buffer.slice(4 + NONCE_LEN, 4 + NONCE_LEN + blockLen);
-                            const hmac = buffer.slice(4 + NONCE_LEN + blockLen, 4 + NONCE_LEN + blockLen + HMAC_LEN);
-                            const toMac = new Uint8Array(prevHash.length + nonce.length + encrypted.length);
-                            toMac.set(prevHash, 0); toMac.set(nonce, prevHash.length); toMac.set(encrypted, prevHash.length + nonce.length);
-                            const computedHmac = new Uint8Array(await crypto.subtle.sign('HMAC', hmacCryptoKey, toMac));
-                            const ok = safeCompare(computedHmac, hmac);
-                            if (!ok) throw new Error(`链式 HMAC 验证失败（块 #${blockIndex}）：请检查主密码/密钥文件/密文完整性。`);
-                            prevHash = hmac.slice(0, HMAC_LEN);
-                            const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, encCryptoKey, encrypted));
-                            controller.enqueue(plain);
-                            processed += plain.length;
-                            if (onProgress && total) onProgress(processed, total);
-                            wipeBuffer(nonce); wipeBuffer(encrypted); wipeBuffer(hmac); wipeBuffer(computedHmac); wipeBuffer(toMac);
-                            buffer = buffer.slice(totalBlockSize); blockIndex++;
+                        // ★ 修复 2：尾部残字节 + 块数不匹配，两种截断都被捕获
+                        if (bufLen > 0) {
+                            controller.error(new Error('解密数据不完整，尾部有残留字节，可能密文被截断。'));
+                            return;
+                        }
+                        if (blockIndex !== expectedChunks) {
+                            controller.error(new Error(
+                                `密文块数不匹配：头部声明 ${expectedChunks} 块，实际解出 ${blockIndex} 块。` +
+                                `可能密文被截断，或头部/块结构被篡改。`
+                            ));
                         }
                     }
                 });
             }
         }
 
+        // ================================================================
+        // 压缩 / 解压
+        // ================================================================
         async function compressData(data) {
             if (typeof CompressionStream === 'undefined') return null;
             try {
                 const cs = new CompressionStream('gzip');
                 const writer = cs.writable.getWriter();
-                writer.write(data);
-                writer.close();
+                writer.write(data); writer.close();
                 const reader = cs.readable.getReader();
                 const chunks = []; let total = 0;
                 while (true) {
@@ -611,9 +754,7 @@
                 const result = new Uint8Array(total); let pos = 0;
                 for (const c of chunks) { result.set(c, pos); pos += c.length; }
                 return result;
-            } catch (e) {
-                console.warn('压缩失败:', e); return null;
-            }
+            } catch (e) { console.warn('压缩失败:', e); return null; }
         }
 
         async function decompressData(data) {
@@ -632,13 +773,11 @@
                 const result = new Uint8Array(total); let pos = 0;
                 for (const c of chunks) { result.set(c, pos); pos += c.length; }
                 return result;
-            } catch (e) {
-                console.warn('解压失败:', e); return null;
-            }
+            } catch (e) { console.warn('解压失败:', e); return null; }
         }
 
         // ================================================================
-        // UI 逻辑（与之前一致，压缩开关可用）
+        // UI 逻辑
         // ================================================================
         let keyFileBytes = null;
         let currentFileEncrypt = null;
@@ -646,6 +785,8 @@
         let currentResultBlob = null;
         let currentResultFingerprint = '';
         let currentResultText = '';
+        // ★ 修复 1：用统一变量控制下载文件名，不再用 onclick 覆盖 addEventListener
+        let currentDownloadFilename = 'output.bin';
 
         const resultDisplay = document.getElementById('resultDisplay');
         const resultActions = document.getElementById('resultActions');
@@ -703,7 +844,7 @@
                 await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: testIter, hash: 'SHA-256' }, keyMat, 256);
                 const elapsed = (performance.now() - start) / 1000;
                 let recommended = Math.round(testIter / elapsed);
-                recommended = Math.min(10000000, Math.max(10000, recommended));
+                recommended = Math.min(MAX_ITERATIONS, Math.max(MIN_ITERATIONS, recommended));
                 recommended = Math.round(recommended / 10000) * 10000;
                 document.getElementById('iterations').value = recommended;
                 resultSpan.textContent = `✅ ${testIter} 次耗时 ${elapsed.toFixed(3)}s，推荐 ${recommended.toLocaleString()} 次`;
@@ -718,10 +859,10 @@
 
         function getParams() {
             const password = document.getElementById('encMk').value;
-            const iterations = parseInt(document.getElementById('iterations').value) || 100000;
-            const chunkSizeKiB = 1024;
-            const chunkSize = chunkSizeKiB * 1024;
-            // 正确读取压缩开关状态
+            let iterations = parseInt(document.getElementById('iterations').value) || 100000;
+            if (iterations < MIN_ITERATIONS) iterations = MIN_ITERATIONS;
+            if (iterations > MAX_ITERATIONS) iterations = MAX_ITERATIONS;
+            const chunkSize = DEFAULT_CHUNK_SIZE;
             const enableCompress = !!document.getElementById('enableCompress').checked;
             return { password, iterations, chunkSize, enableCompress };
         }
@@ -748,13 +889,20 @@
             }
         }
 
+        // ★ 修复 1：唯一的下载 handler（用 addEventListener 注册一次），文件名从全局变量读取
         downloadResultBtn.addEventListener('click', () => {
             if (!currentResultBlob) return;
             const a = document.createElement('a');
             const url = URL.createObjectURL(currentResultBlob);
-            a.href = url; a.download = 'output.bin';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            a.href = url;
+            a.download = currentDownloadFilename || 'output.bin';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            // ★ 下载修复：改用旧版方式，延迟释放 ObjectURL，避免大文件下载被中断
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
         });
+
         copyResultBtn.addEventListener('click', () => {
             if (!currentResultText) return;
             navigator.clipboard.writeText(currentResultText).then(() => alert('已复制')).catch(() => {
@@ -772,6 +920,7 @@
             resultActions.style.display = 'none';
             sizeInfo.textContent = '';
             currentResultBlob = null; currentResultFingerprint = ''; currentResultText = '';
+            currentDownloadFilename = 'output.bin';  // ★ 重置下载文件名
             document.getElementById('plainText').value = '';
             document.getElementById('cipherText').value = '';
             document.getElementById('cipherFingerprint').value = '';
@@ -817,7 +966,7 @@
         setupFileDrop('fileDropDecrypt', 'fileInputDecrypt', 'fileInfoDecrypt', 'progressFillDecrypt', 'decrypt');
 
         // ================================================================
-        // 文本解密上传逻辑（保留 2MB 限制）
+        // 文本解密上传
         // ================================================================
         const uploadCipherBtn = document.getElementById('uploadCipherBtn');
         const cipherFileInput = document.getElementById('cipherFileInput');
@@ -825,7 +974,7 @@
         const clearCipherFileBtn = document.getElementById('clearCipherFileBtn');
         const cipherTextArea = document.getElementById('cipherText');
         const cipherUploadArea = document.getElementById('cipherUploadArea');
-        const MAX_BASE64_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
+        const MAX_BASE64_UPLOAD_BYTES = 2 * 1024 * 1024;
 
         uploadCipherBtn.addEventListener('click', () => cipherFileInput.click());
 
@@ -849,7 +998,7 @@
                         cipherTextArea.value = base64;
                         cipherFileStatus.textContent = `✅ ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
                         cipherFileStatus.className = 'file-status loaded';
-                        console.log(`📂 已加载密文文件: ${file.name}，大小 ${file.size} 字节，已转 Base64 填入文本框`);
+                        console.log(`📂 已加载密文文件: ${file.name}，大小 ${file.size} 字节`);
                     } catch (err) {
                         console.error('读取文件失败:', err);
                         cipherFileStatus.textContent = `❌ 读取失败: ${err.message}`;
@@ -872,12 +1021,15 @@
             e.preventDefault(); cipherUploadArea.classList.remove('dragover');
             if (e.dataTransfer.files.length) {
                 const file = e.dataTransfer.files[0];
-                const dt = new DataTransfer(); dt.items.add(file); cipherFileInput.files = dt.files; cipherFileInput.dispatchEvent(new Event('change'));
+                const dt = new DataTransfer(); dt.items.add(file); cipherFileInput.files = dt.files;
+                cipherFileInput.dispatchEvent(new Event('change'));
             }
         });
 
         // ================================================================
-        // 文本/文件 加解密 事件（保持之前逻辑）
+        // 文本加密
+        // ★ 修复 1：不再设 onclick；改用全局 currentDownloadFilename
+        // ★ 修复 4：writer.write / close 都 await，确保异常传播出来
         // ================================================================
         document.getElementById('encryptTextBtn').addEventListener('click', async () => {
             const btn = document.getElementById('encryptTextBtn'); btn.disabled = true; btn.textContent = '⏳ 加密中…';
@@ -896,9 +1048,12 @@
                     if (compressed !== null) { compressedFlag = true; wipeBuffer(plainBytes); plainBytes = compressed; }
                 }
                 const meta = { isText: true, filename: null, mime: null, salt, compressed: compressedFlag };
-                const { readable, writable } = new TransformStream(); const writer = writable.getWriter();
-                writer.write(plainBytes); writer.close();
-                // ===== 修改点 3：传入 plainBytes.length =====
+                const { readable, writable } = new TransformStream();
+                const writer = writable.getWriter();
+                // ★ 修复 4：await 写入，让加密流内部的抛错能传播到外层 catch
+                await writer.write(plainBytes);
+                await writer.close();
+
                 const encryptStream = new EncryptStream(keys, meta, chunkSize, iterations, null, plainBytes.length);
                 const encryptedReadable = readable.pipeThrough(encryptStream);
                 const reader = encryptedReadable.getReader();
@@ -910,12 +1065,12 @@
                 for (const c of chunks) { full.set(c, pos); pos += c.length; wipeBuffer(c); }
                 const fingerprint = uint8ToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', full)));
                 const base64 = toBase64(full);
+
+                // ★ 修复 1：只设文件名，不设 onclick
+                currentDownloadFilename = 'encrypted.enc';
                 showResult(base64, fingerprint, new Blob([full], { type: 'application/octet-stream' }), false);
                 sizeInfo.textContent = `加密后 ${(full.length / 1024).toFixed(1)} KB · 指纹: ${fingerprint}`;
-                downloadResultBtn.onclick = () => {
-                    const a = document.createElement('a'); const url = URL.createObjectURL(new Blob([full], { type: 'application/octet-stream' }));
-                    a.href = url; a.download = 'encrypted.enc'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                };
+
                 wipeBuffer(keys.encKey); wipeBuffer(keys.macKey); wipeBuffer(full);
                 console.log('========== 加密完成 ==========');
             } catch (e) {
@@ -923,6 +1078,10 @@
             } finally { btn.disabled = false; btn.textContent = '🔒 执行加密'; }
         });
 
+        // ================================================================
+        // 文本解密
+        // ★ 修复 2：把 parsed.totalChunks 传给 DecryptStream
+        // ================================================================
         document.getElementById('decryptTextBtn').addEventListener('click', async () => {
             const btn = document.getElementById('decryptTextBtn'); btn.disabled = true; btn.textContent = '⏳ 解密中…';
             console.log('========== 开始解密 ==========');
@@ -938,14 +1097,14 @@
                     if (computed !== expectedFingerprint) throw new Error(`指纹不匹配：${computed} != ${expectedFingerprint}`);
                 }
                 const parsed = parseHeader(fullCipher);
-                const salt = parsed.salt;
-                let iterations = parsed.iterations;
-                if (iterations === null) iterations = parseInt(document.getElementById('iterations').value) || 100000;
-                const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[解密] ');
-                const decryptStream = new DecryptStream(keys, null, 0);
-                const chunks = [fullCipher.slice(parsed.headerLen)];
+                const keys = await deriveKey(password, parsed.salt, keyFileBytes, parsed.iterations, '[解密] ');
+
+                const headerBytes = fullCipher.slice(0, parsed.headerLen);
+                // ★ 修复 2：传入 parsed.totalChunks
+                const decryptStream = new DecryptStream(keys, null, 0, headerBytes, parsed.chunkSize, parsed.totalChunks);
+                const cipherPayload = fullCipher.slice(parsed.headerLen);
                 const readable = new ReadableStream({
-                    start(controller) { for (const c of chunks) controller.enqueue(c); controller.close(); }
+                    start(controller) { controller.enqueue(cipherPayload); controller.close(); }
                 });
                 const decrypted = readable.pipeThrough(decryptStream);
                 const reader = decrypted.getReader();
@@ -962,6 +1121,7 @@
                     wipeBuffer(plainBytes); finalBytes = decomp;
                 }
                 const text = new TextDecoder().decode(finalBytes);
+                currentDownloadFilename = 'decrypted.txt';
                 showResult(text, expectedFingerprint || '', new Blob([finalBytes], { type: 'text/plain' }), false, null);
                 sizeInfo.textContent = `解密后 ${(finalBytes.length / 1024).toFixed(1)} KB`;
                 wipeBuffer(keys.encKey); wipeBuffer(keys.macKey); wipeBuffer(finalBytes);
@@ -971,7 +1131,9 @@
             } finally { btn.disabled = false; btn.textContent = '🔓 执行解密'; }
         });
 
-        // 文件加密 / 解密事件保留此前实现（使用 EncryptStream / DecryptStream）
+        // ================================================================
+        // 文件加密
+        // ================================================================
         document.getElementById('encryptFileBtn').addEventListener('click', async () => {
             const btn = document.getElementById('encryptFileBtn'); btn.disabled = true; btn.textContent = '⏳ 加密中…';
             try {
@@ -983,12 +1145,11 @@
                 const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[文件加密] ');
                 const meta = { isText: false, filename: file.name, mime: file.type || 'application/octet-stream', salt, compressed: false };
                 const fileStream = file.stream();
-                // ===== 修改点 2：传入 file.size =====
-                const encryptStream = new EncryptStream(keys, meta, chunkSize, iterations, 
+                const encryptStream = new EncryptStream(keys, meta, chunkSize, iterations,
                     (processed, total) => {
                         const pct = Math.min(100, (processed / total) * 100);
                         document.getElementById('progressFillEncrypt').style.width = pct + '%';
-                    }, 
+                    },
                     file.size
                 );
 
@@ -1009,6 +1170,7 @@
                     const blob = new Blob([full], { type: 'application/octet-stream' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = file.name + '.enc'; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 10000);
+                    currentDownloadFilename = file.name + '.enc';
                     showResult(`✅ 加密完成（降级下载）\n文件: ${file.name}.enc`, null, blob, true); sizeInfo.textContent = `加密后 ${(full.length / 1024).toFixed(1)} KB`;
                     wipeBuffer(full);
                 }
@@ -1019,6 +1181,11 @@
             } finally { btn.disabled = false; btn.textContent = '🔒 加密并流式保存 (.enc)'; }
         });
 
+        // ================================================================
+        // 文件解密
+        // ★ 修复 5：showSaveFilePicker 去掉非法 '.*' accept
+        // ★ 修复 2：传入 parsed.totalChunks
+        // ================================================================
         document.getElementById('decryptFileBtn').addEventListener('click', async () => {
             const btn = document.getElementById('decryptFileBtn'); btn.disabled = true; btn.textContent = '⏳ 解密中…';
             try {
@@ -1029,29 +1196,31 @@
                 const headerSlice = await file.slice(0, 8192).arrayBuffer();
                 const headerBytes = new Uint8Array(headerSlice);
                 const parsed = parseHeader(headerBytes);
-                const salt = parsed.salt;
-                let iterations = parsed.iterations;
-                if (iterations === null) iterations = parseInt(document.getElementById('iterations').value) || 100000;
-                const keys = await deriveKey(password, salt, keyFileBytes, iterations, '[文件解密] ');
+                const keys = await deriveKey(password, parsed.salt, keyFileBytes, parsed.iterations, '[文件解密] ');
                 const suggestedName = parsed.filename || 'decrypted.bin';
 
+                const authHeader = headerBytes.slice(0, parsed.headerLen);
+
                 if (window.showSaveFilePicker) {
-                    const fileHandle = await showSaveFilePicker({ suggestedName: suggestedName, types: [{ description: '解密文件', accept: { 'application/octet-stream': ['.*'] } }] });
+                    // ★ 修复 5：去掉 types（' .*' 不是合法扩展名），让用户自己命名
+                    const fileHandle = await showSaveFilePicker({ suggestedName: suggestedName });
                     const writable = await fileHandle.createWritable();
                     const restStream = file.slice(parsed.headerLen).stream();
+                    // ★ 修复 2：传入 parsed.totalChunks
                     const decryptStream = new DecryptStream(keys, (processed, total) => {
                         const pct = Math.min(100, (processed / total) * 100);
                         document.getElementById('progressFillDecrypt').style.width = pct + '%';
-                    }, file.size - parsed.headerLen);
+                    }, file.size - parsed.headerLen, authHeader, parsed.chunkSize, parsed.totalChunks);
                     await restStream.pipeThrough(decryptStream).pipeTo(writable);
                     await writable.close();
                     showResult(`✅ 解密完成\n文件: ${suggestedName}`, null, null, true); sizeInfo.textContent = '解密完成';
                 } else {
                     const restStream = file.slice(parsed.headerLen).stream();
+                    // ★ 修复 2：传入 parsed.totalChunks
                     const decryptStream = new DecryptStream(keys, (processed, total) => {
                         const pct = Math.min(100, (processed / total) * 100);
                         document.getElementById('progressFillDecrypt').style.width = pct + '%';
-                    }, file.size - parsed.headerLen);
+                    }, file.size - parsed.headerLen, authHeader, parsed.chunkSize, parsed.totalChunks);
                     const reader = restStream.pipeThrough(decryptStream).getReader();
                     const chunks = []; let total = 0;
                     while (true) {
@@ -1062,6 +1231,7 @@
                     const blob = new Blob([full], { type: 'application/octet-stream' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url; a.download = suggestedName; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 10000);
+                    currentDownloadFilename = suggestedName;
                     showResult(`✅ 解密完成（降级下载）\n文件: ${suggestedName}`, null, blob, true); sizeInfo.textContent = `解密后 ${(full.length / 1024).toFixed(1)} KB`;
                     wipeBuffer(full);
                 }
